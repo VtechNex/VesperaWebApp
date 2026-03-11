@@ -1002,8 +1002,11 @@ export default function AddLeads({ lists = [], onCreate }) {
                     className="w-[400px] bg-black text-white border border-white/15 rounded-md px-3 py-2 focus:outline-none focus:border-[#D4AF37] transition-colors"
                   >
                     <option value="">Select Person</option>
-                    <option value="Mohsin">Mohsin</option>
-                    <option value="Imran">Imran</option>
+                    {assigneeList.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.username || user.email || "Unnamed"}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

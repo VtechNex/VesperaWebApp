@@ -30,6 +30,7 @@ import {
 } from "../../../components/ui/dialog";
 import LEADS from "../../../services/leadService";
 import QUALIFIERS from "../../../services/qualifierService";
+import ADMIN from "../../../services/adminService";
 
 function ManageLeads({ lists = [], initialViewMode }) {
   const [leads, setLeads] = useState([]);
@@ -38,6 +39,21 @@ function ManageLeads({ lists = [], initialViewMode }) {
   const [viewMode, setViewMode] = useState(initialViewMode || "all");
   const [loading, setLoading] = useState(false);
 
+  const formatDateTime = (value) => {
+    if (!value) return "—";
+    try {
+      return new Date(value).toLocaleString();
+    } catch {
+      return value;
+    }
+  };
+
+  const truncateText = (text, max = 120) => {
+    if (!text) return "—";
+    if (text.length <= max) return text;
+    return `${text.slice(0, max).trim()}...`;
+  };
+
   // Dialog & qualifiers state
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -45,6 +61,7 @@ function ManageLeads({ lists = [], initialViewMode }) {
   const [productGroups, setProductGroups] = useState([]);
   const [customerGroups, setCustomerGroups] = useState([]);
   const [tagsList, setTagsList] = useState([]);
+  const [assigneeList, setAssigneeList] = useState([]);
   const [moreOpenId, setMoreOpenId] = useState(null);
   const [dialogSaving, setDialogSaving] = useState(false);
 
@@ -73,6 +90,21 @@ function ManageLeads({ lists = [], initialViewMode }) {
     };
 
     fetchQualifiers();
+
+    const fetchUsers = async () => {
+      try {
+        const res = await ADMIN.FETCH_USERS();
+        if (res?.status === 200) {
+          const users = res.data?.data || [];
+          // allow only active users for assignment
+          setAssigneeList(users.filter((u) => u.is_active));
+        }
+      } catch (err) {
+        console.error('Failed to load users', err);
+      }
+    };
+
+    fetchUsers();
   }, [fetchData]);
 
   const filteredLeads = useMemo(() => {
@@ -166,8 +198,29 @@ function ManageLeads({ lists = [], initialViewMode }) {
     try {
       const res = await LEADS.GET_BY_ID(id);
       if (res?.status === 200 && res.data?.data) {
-        // copy to editable object
-        setSelectedLead({ ...res.data.data, tags: res.data.data.tags || [] });
+        const lead = res.data.data;
+
+        const followUpRaw = lead.follow_up_date || lead.followUpDate || null;
+        let followUpDate = "";
+        let followUpTime = "";
+
+        if (followUpRaw) {
+          const dt = new Date(followUpRaw);
+          if (!Number.isNaN(dt.getTime())) {
+            followUpDate = dt.toISOString().slice(0, 10);
+            followUpTime = dt.toISOString().slice(11, 16);
+          }
+        }
+
+        setSelectedLead({
+          ...lead,
+          tags: lead.tags || [],
+          followUpDate,
+          followUpTime,
+          repeatFollowUp: lead.repeat_follow_up || lead.repeatFollowUp || false,
+          repeatInterval: lead.repeat_interval || lead.repeatInterval || "",
+          followUpNotes: lead.follow_up_notes || lead.followUpNotes || "",
+        });
         setEditDialogOpen(true);
       } else {
         window.alert('Failed to fetch lead');
@@ -200,6 +253,12 @@ function ManageLeads({ lists = [], initialViewMode }) {
         dealSize: selectedLead.deal_size || selectedLead.dealSize || null,
         leadPotential: selectedLead.lead_potential || selectedLead.leadPotential || null,
         leadStage: selectedLead.lead_stage || selectedLead.leadStage || null,
+        assignedTo: selectedLead.assigned_to || selectedLead.assignedTo || null,
+        followUpDate: selectedLead.followUpDate || null,
+        followUpTime: selectedLead.followUpTime || null,
+        followUpNotes: selectedLead.followUpNotes || null,
+        repeatFollowUp: selectedLead.repeatFollowUp || false,
+        repeatInterval: selectedLead.repeatInterval || null,
       };
 
       const res = await LEADS.UPDATE(selectedLead.id, payload);
@@ -426,7 +485,36 @@ function ManageLeads({ lists = [], initialViewMode }) {
 
               <div>
                 <Label>Created</Label>
-                <div className="mt-1">{selectedLead ? new Date(selectedLead.created_at).toLocaleString() : '—'}</div>
+                <div className="mt-1">{selectedLead ? formatDateTime(selectedLead.created_at) : '—'}</div>
+              </div>
+
+              <div>
+                <Label>Assigned to</Label>
+                <div className="mt-1">
+                  {selectedLead?.assignee_name || selectedLead?.assignee_email || selectedLead?.assigned_to || '—'}
+                </div>
+              </div>
+
+              <div>
+                <Label>Next follow-up</Label>
+                <div className="mt-1">{formatDateTime(selectedLead?.follow_up_date || selectedLead?.followUpDate)}</div>
+              </div>
+
+              <div>
+                <Label>Follow-up status</Label>
+                <div className="mt-1">
+                  {selectedLead?.repeat_follow_up || selectedLead?.repeatFollowUp ? 'Repeats' : 'One-time'}
+                </div>
+              </div>
+
+              <div className="col-span-2">
+                <Label>Follow-up notes</Label>
+                <div className="mt-1 whitespace-pre-wrap">{truncateText(selectedLead?.follow_up_notes || selectedLead?.followUpNotes)}</div>
+              </div>
+
+              <div className="col-span-2">
+                <Label>Follow-ups sent</Label>
+                <div className="mt-1">{selectedLead?.follow_up_count ?? selectedLead?.followUpCount ?? 0}</div>
               </div>
 
               <div>
@@ -516,6 +604,67 @@ function ManageLeads({ lists = [], initialViewMode }) {
                       {customerGroups.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
                     </select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Assign to</Label>
+                    <select className="w-full bg-black text-white border border-white/10 rounded px-3 py-2 mt-1" value={selectedLead.assigned_to || selectedLead.assignedTo || ''} onChange={(e) => setSelectedLead(prev => ({ ...prev, assigned_to: e.target.value }))}>
+                      <option value="">Unassigned</option>
+                      {assigneeList.map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.username || user.email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label>Next Follow-up</Label>
+                    <input
+                      type="datetime-local"
+                      className="w-full bg-black text-white border border-white/10 rounded px-3 py-2 mt-1"
+                      value={selectedLead.followUpDate ? `${selectedLead.followUpDate}T${selectedLead.followUpTime || '00:00'}` : ''}
+                      onChange={(e) => {
+                        const [date, time] = e.target.value.split('T');
+                        setSelectedLead(prev => ({ ...prev, followUpDate: date, followUpTime: time || '00:00' }));
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      id="repeatFollowUp"
+                      type="checkbox"
+                      checked={selectedLead.repeatFollowUp || false}
+                      onChange={(e) => setSelectedLead(prev => ({ ...prev, repeatFollowUp: e.target.checked }))}
+                      className="h-4 w-4"
+                    />
+                    <label htmlFor="repeatFollowUp" className="text-sm text-gray-200">
+                      Repeat follow-up
+                    </label>
+                  </div>
+
+                  <div>
+                    <Label>Repeat interval</Label>
+                    <input
+                      className="w-full bg-black text-white border border-white/10 rounded px-3 py-2 mt-1"
+                      value={selectedLead.repeatInterval || ''}
+                      onChange={(e) => setSelectedLead(prev => ({ ...prev, repeatInterval: e.target.value }))}
+                      placeholder="e.g., 7 days"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Follow-up Notes</Label>
+                  <textarea
+                    className="w-full bg-black text-white border border-white/10 rounded px-3 py-2 mt-1 resize-none h-24"
+                    value={selectedLead.followUpNotes || ''}
+                    onChange={(e) => setSelectedLead(prev => ({ ...prev, followUpNotes: e.target.value }))}
+                  />
                 </div>
 
                 <div>
