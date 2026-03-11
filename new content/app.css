@@ -1,0 +1,19 @@
+/* Global enhancements for premium feel */
+html, body, #root { height: 100%; }
+
+/***** Remove legacy styles from template *****/
+.App-header { display: none; }
+
+/* Subtle noise overlay utility (optional to apply on sections via pseudo elements) */
+.premium-noise::after {
+  content: "";
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.08; mix-blend-mode: soft-light;
+  background-image: url('data:image/svg+xml;utf8,&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"&gt;&lt;filter id="n" x="0" y="0" width="100%" height="100%"&gt;&lt;feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" stitchTiles="stitch" /&gt;&lt;/filter&gt;&lt;rect width="100%" height="100%" filter="url(%23n)" opacity="0.15" /&gt;&lt;/svg&gt');
+}
+
+/* Cards & surfaces */
+.card-surface { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(14px); }
+
+/* Animations */
+.fade-in { animation: fadeIn 700ms ease-out both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } } 

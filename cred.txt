@@ -1,0 +1,14 @@
+Default accounts (change these soon)
+- Superadmin
+  - ID or Email: superadmin or superadmin@vtec.local
+  - Password: superadmin123
+  - Redirect: /dashboard/superadmin
+
+- Admin (Owner)
+  - ID or Email: owner
+  - Password: owner12345
+  - Redirect: /dashboard/admin
+
+Hello leads login:
+id = vesperaestate@gmail.com
+pass = Vespera!@#$4321

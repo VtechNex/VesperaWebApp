@@ -1,0 +1,56 @@
+/* UI tweaks for accessibility, responsiveness, and performance */
+
+/* Focus-visible ring for keyboard users */
+a:focus-visible,
+button:focus-visible,
+.nav-link:focus-visible,
+.brand-link:focus-visible,
+.footer-link:focus-visible,
+.gold-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.35);
+}
+
+/* Standardized heading scales */
+.h1-hero {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  /* Better on tiny devices, still large on desktop */
+  font-size: clamp(2rem, 8vw, 3.75rem); /* 32px → ~60px */
+  line-height: 1.1;
+}
+.h2-section {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: clamp(1.75rem, 5vw, 3rem); /* 28px → 48px */
+  line-height: 1.2;
+}
+.h3-section {
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  font-size: clamp(1.25rem, 3.5vw, 1.875rem); /* 20px → 30px */
+  line-height: 1.25;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .gold-shine::after { transition: none !important; }
+}
+
+/* Soften backdrop blurs on small screens for perf */
+@media (max-width: 640px) {
+  .backdrop-blur-xl { backdrop-filter: blur(6px) !important; }
+  .backdrop-blur-lg { backdrop-filter: blur(6px) !important; }
+  .backdrop-blur-md { backdrop-filter: blur(4px) !important; }
+  .backdrop-blur-sm { backdrop-filter: blur(2px) !important; }
+
+  .card-surface { backdrop-filter: blur(6px) !important; }
+  .stats-card  { backdrop-filter: blur(6px) !important; }
+}
+
