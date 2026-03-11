@@ -8,7 +8,9 @@ import SiteFooter from '../../components/layout/SiteFooter'
 export default function Sales() {
   // const { user, signout } = useAuth()
   const navigate = useNavigate()
-  const onLogout = () => { signout(); navigate('/') }
+  const onLogout = () => { 
+    // signout(); 
+    navigate('/') }
   return (
     <div className="min-h-screen bg-black text-white">
       <SiteHeader authMode="dashboard" onLogout={onLogout} />

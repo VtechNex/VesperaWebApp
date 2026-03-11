@@ -7,9 +7,11 @@ import SiteHeader from '../../components/layout/SiteHeader'
 import SiteFooter from '../../components/layout/SiteFooter'
 
 export default function SuperAdmin() {
-  const { user, signout } = useAuth()
+  // const { user, signout } = useAuth()
   const navigate = useNavigate()
-  const onLogout = () => { signout(); navigate('/') }
+  const onLogout = () => { 
+    // signout(); 
+    navigate('/') }
   return (
     <div className="min-h-screen bg-black text-white">
       <SiteHeader authMode="dashboard" onLogout={onLogout} />
@@ -17,7 +19,7 @@ export default function SuperAdmin() {
         <header className="flex items-center justify-between">
           <div>
             <h1 className="h2-section">Superadmin Dashboard</h1>
-            <div className="text-white/70 text-sm">Signed in as {user?.name} ({user?.role})</div>
+            {/* <div className="text-white/70 text-sm">Signed in as {user?.name} ({user?.role})</div> */}
           </div>
           <Button className="border border-white/20 bg-white/10 hover:bg-white/15" onClick={onLogout}>Logout</Button>
         </header>
