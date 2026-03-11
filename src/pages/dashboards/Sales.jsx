@@ -1,12 +1,12 @@
 import React from 'react'
 import { Button } from '../../components/ui/button'
-import { useAuth } from '../../context/AuthProvider'
+// import { useAuth } from '../../context/AuthProvider'
 import { useNavigate } from 'react-router-dom'
 import SiteHeader from '../../components/layout/SiteHeader'
 import SiteFooter from '../../components/layout/SiteFooter'
 
 export default function Sales() {
-  const { user, signout } = useAuth()
+  // const { user, signout } = useAuth()
   const navigate = useNavigate()
   const onLogout = () => { signout(); navigate('/') }
   return (
@@ -16,7 +16,7 @@ export default function Sales() {
         <header className="flex items-center justify-between">
           <div>
             <h1 className="h2-section">Sales Team Dashboard</h1>
-            <div className="text-white/70 text-sm">Signed in as {user?.name} ({user?.role})</div>
+            {/* <div className="text-white/70 text-sm">Signed in as {user?.name} ({user?.role})</div> */}
           </div>
           <Button className="border border-white/20 bg-white/10 hover:bg-white/15" onClick={onLogout}>Logout</Button>
         </header>
