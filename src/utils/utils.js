@@ -7,6 +7,7 @@ const API = {
     LEADS: import.meta.env.VITE_LEADS_API,
     PROPERTIES: import.meta.env.VITE_PROPERTIES_API,
     GLOBAL: import.meta.env.VITE_GLOBAL_API,
+    SETTINGS: import.meta.env.VITE_SETTINGS_API || "http://localhost:5000/api/settings",
 }
 
 export default API;

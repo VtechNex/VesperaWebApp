@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import QUALIFIERS from '../../../../services/qualifierService'
+import SETTINGS from '../../../../services/settingsService'
 import { Input } from '../../../../components/ui/input'
 import { Button } from '../../../../components/ui/button'
 import { Label } from '../../../../components/ui/label'
@@ -11,8 +12,10 @@ import {
   DialogFooter,
 } from '../../../../components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../../components/ui/tabs'
+import { useToast } from '../../../../hooks/use-toast'
 
 function ManageQualifiers() {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('product-groups')
 
   const listOptionsForCustomFields = [
@@ -42,6 +45,7 @@ function ManageQualifiers() {
   const [menuOpenId, setMenuOpenId] = useState(null)
   const [editDialog, setEditDialog] = useState({ open: false, listType: null, id: null, name: '' })
   const [addDialog, setAddDialog] = useState({ open: false, type: null, value: '' })
+  const [customFieldTypeMenuOpen, setCustomFieldTypeMenuOpen] = useState(false)
   const [customFieldDialog, setCustomFieldDialog] = useState({
     open: false,
     name: '',
@@ -51,6 +55,7 @@ function ManageQualifiers() {
     searchLists: '',
     selectedLists: [],
   })
+  const customFieldTypeMenuRef = useRef(null)
 
   const sortedGroups = useMemo(() => {
     const list = [...groups]
@@ -110,11 +115,13 @@ function ManageQualifiers() {
     setLoading(true)
     try {
       const res = await QUALIFIERS.FETCH_ALL();
+      const customFieldsRes = await SETTINGS.GET_CUSTOM_FIELDS();
       if (res?.data?.success) {
         const rows = res.data.data || [];
         setGroups(rows.filter((r) => r.type === 'product'))
         setCustomerGroups(rows.filter((r) => r.type === 'customer'))
         setTags(rows.filter((r) => r.type === 'tag'))
+        setCustomFields(customFieldsRes?.data?.data || [])
       } else {
         console.error('Failed to load qualifiers', res)
       }
@@ -129,6 +136,20 @@ function ManageQualifiers() {
     fetchAllQualifiers()
   }, [])
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        customFieldTypeMenuRef.current &&
+        !customFieldTypeMenuRef.current.contains(event.target)
+      ) {
+        setCustomFieldTypeMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleUpdate = async () => {
     if (!editDialog.name.trim() || !editDialog.listType) return
 
@@ -136,6 +157,7 @@ function ManageQualifiers() {
       const res = await QUALIFIERS.UPDATE(editDialog.id, { name: editDialog.name })
       if (res?.data?.success) {
         await fetchAllQualifiers()
+        toast({ title: 'Qualifier updated', description: 'Changes were saved successfully.' })
       } else {
         window.alert('Update failed')
       }
@@ -161,6 +183,7 @@ function ManageQualifiers() {
       const res = await QUALIFIERS.DELETE(id)
       if (res?.data?.success) {
         await fetchAllQualifiers()
+        toast({ title: 'Qualifier deleted', description: 'The qualifier was removed successfully.' })
       } else {
         window.alert('Delete failed')
       }
@@ -185,6 +208,7 @@ function ManageQualifiers() {
         await QUALIFIERS.CREATE({ name, type: addDialog.type })
       }
       await fetchAllQualifiers()
+      toast({ title: 'Qualifier created', description: 'The new qualifier is now available.' })
     } catch (err) {
       console.error(err)
       window.alert('Add failed')
@@ -226,29 +250,42 @@ function ManageQualifiers() {
     })
   }
 
-  const handleAddCustomField = () => {
+  const handleAddCustomField = async () => {
     if (!customFieldDialog.name.trim() || !customFieldDialog.type) return
 
-    const field = {
-      id: `field-${Date.now()}`,
-      name: customFieldDialog.name.trim(),
-      type: customFieldDialog.type,
-      values: customFieldDialog.values,
-      mandatory: customFieldDialog.mandatory,
-      lists: customFieldDialog.selectedLists,
+    try {
+      await SETTINGS.CREATE_CUSTOM_FIELD({
+        name: customFieldDialog.name.trim(),
+        type: customFieldDialog.type,
+        values: customFieldDialog.values,
+        mandatory: customFieldDialog.mandatory,
+        lists: customFieldDialog.selectedLists,
+      })
+      await fetchAllQualifiers()
+      toast({ title: 'Custom field created', description: 'Dependent forms will pick this up on next load.' })
+      setCustomFieldDialog({
+        open: false,
+        name: '',
+        type: '',
+        values: '',
+        mandatory: false,
+        searchLists: '',
+        selectedLists: [],
+      })
+      setCustomFieldTypeMenuOpen(false)
+    } catch (error) {
+      toast({ title: 'Custom field failed', description: error?.response?.data?.message || 'Unable to save the custom field.' })
     }
+  }
 
-    setCustomFields((prev) => [...prev, field])
-
-    setCustomFieldDialog({
-      open: false,
-      name: '',
-      type: '',
-      values: '',
-      mandatory: false,
-      searchLists: '',
-      selectedLists: [],
-    })
+  const handleDeleteCustomField = async (id) => {
+    try {
+      await SETTINGS.DELETE_CUSTOM_FIELD(id)
+      await fetchAllQualifiers()
+      toast({ title: 'Custom field deleted', description: 'The field was removed everywhere.' })
+    } catch (error) {
+      toast({ title: 'Delete failed', description: error?.response?.data?.message || 'Unable to delete the custom field.' })
+    }
   }
 
   return (
@@ -462,17 +499,75 @@ function ManageQualifiers() {
             <Button onClick={() => setCustomFieldDialog((d) => ({ ...d, open: true }))} className="gold-btn gold-shine px-4 py-2">Add Field</Button>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/80">
+          <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+            <div className="grid grid-cols-[minmax(0,1.3fr)_120px_120px_minmax(0,1fr)_120px] gap-4 border-b border-white/10 px-4 py-3 text-xs uppercase tracking-[0.18em] text-white/45">
+              <div>Field</div>
+              <div>Type</div>
+              <div>Required</div>
+              <div>Values</div>
+              <div className="text-right">Action</div>
+            </div>
+
             {customFields.length === 0 ? (
-              <div>No custom fields yet.</div>
+              <div className="px-4 py-8 text-sm text-white/55">
+                No custom fields yet. Add one and it will appear in the Add Lead qualifiers form.
+              </div>
             ) : (
-              <div className="space-y-2">
+              <div className="divide-y divide-white/10">
                 {customFields.map((f) => (
-                  <div key={f.id} className="flex items-center justify-between">
-                    <div>{f.name} ({f.type})</div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost">Edit</Button>
-                      <Button variant="ghost" className="text-red-300">Delete</Button>
+                  <div key={f.id} className="grid grid-cols-[minmax(0,1.3fr)_120px_120px_minmax(0,1fr)_120px] gap-4 px-4 py-4 text-sm text-white/85 items-start">
+                    <div className="min-w-0">
+                      <div className="font-medium text-white">{f.name}</div>
+                      <div className="mt-1 text-xs text-white/45">
+                        Created for dynamic lead qualifiers
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="inline-flex rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-2.5 py-1 text-xs font-medium text-[#E5C766]">
+                        {f.type}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                          f.mandatory
+                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20'
+                            : 'bg-white/5 text-white/60 border border-white/10'
+                        }`}
+                      >
+                        {f.mandatory ? 'Mandatory' : 'Optional'}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0">
+                      {f.type === 'list' && Array.isArray(f.values) && f.values.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {f.values.map((value) => (
+                            <span
+                              key={`${f.id}-${value}`}
+                              className="inline-flex rounded-full border border-white/10 bg-white/5 px-2 py-1 text-xs text-white/75"
+                            >
+                              {value}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-white/45 text-xs">
+                          {f.type === 'list' ? 'No values added' : 'Free input field'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        className="text-red-300 hover:text-red-200 hover:bg-red-500/10"
+                        onClick={() => handleDeleteCustomField(f.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -516,37 +611,140 @@ function ManageQualifiers() {
       </Dialog>
 
       <Dialog open={customFieldDialog.open} onOpenChange={(open) => setCustomFieldDialog((d) => ({ ...d, open }))}>
-        <DialogContent className="bg-black/90 border border-white/10 text-white rounded-2xl max-w-lg w-full p-6">
+        <DialogContent className="bg-[#060606] border border-white/10 text-white rounded-3xl max-w-2xl w-full p-0 overflow-hidden shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-base md:text-lg font-semibold text-white">Add Custom Field</DialogTitle>
+            <div className="border-b border-white/10 px-6 py-5 bg-[linear-gradient(135deg,rgba(212,175,55,0.10),rgba(212,175,55,0.02)_35%,transparent_100%)]">
+              <DialogTitle className="text-xl md:text-2xl font-semibold text-white">Add Custom Field</DialogTitle>
+              <p className="mt-1 text-sm text-white/60">
+                Create dynamic qualifier fields that will appear automatically inside the Add Lead form.
+              </p>
+            </div>
           </DialogHeader>
-          <div className="mt-4 space-y-4 text-xs md:text-sm">
-            <Label>Field Name</Label>
-            <Input className="text-black" value={customFieldDialog.name} onChange={(e) => setCustomFieldDialog((d) => ({ ...d, name: e.target.value }))} />
+          <div className="px-6 py-6 space-y-6 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr] gap-4">
+              <div className="space-y-2">
+                <Label className="text-white/85">Field Name</Label>
+                <Input
+                  className="h-12 bg-black/40 border-white/15 text-white placeholder:text-white/35 focus-visible:ring-1 focus-visible:ring-[#D4AF37] focus-visible:border-[#D4AF37]"
+                  placeholder="e.g. Project Group, Budget Range"
+                  value={customFieldDialog.name}
+                  onChange={(e) => setCustomFieldDialog((d) => ({ ...d, name: e.target.value }))}
+                />
+              </div>
 
-            <Label>Type</Label>
-            <select value={customFieldDialog.type} onChange={(e) => setCustomFieldDialog((d) => ({ ...d, type: e.target.value }))} className="bg-black/40 border border-white/15 text-white text-sm rounded-md px-3 py-2 w-full">
-              <option value="">Select type</option>
-              <option value="text">Text</option>
-              <option value="number">Number</option>
-              <option value="list">List</option>
-            </select>
+              <div className="space-y-2">
+                <Label className="text-white/85">Type</Label>
+                <div className="relative" ref={customFieldTypeMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCustomFieldTypeMenuOpen((open) => !open)}
+                    className="h-12 w-full bg-black/40 border border-white/15 text-white text-sm rounded-xl px-4 py-2 flex items-center justify-between focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+                  >
+                    <span className={customFieldDialog.type ? 'text-white' : 'text-white/50'}>
+                      {customFieldDialog.type
+                        ? customFieldDialog.type.charAt(0).toUpperCase() + customFieldDialog.type.slice(1)
+                        : 'Select type'}
+                    </span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-4 w-4 text-white/70 transition-transform ${customFieldTypeMenuOpen ? 'rotate-180' : ''}`}
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    >
+                      <path d="M5 7.5 10 12.5 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+
+                  {customFieldTypeMenuOpen && (
+                    <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0b0b0b] shadow-2xl">
+                      {[
+                        { value: 'text', label: 'Text' },
+                        { value: 'number', label: 'Number' },
+                        { value: 'list', label: 'List' },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => {
+                            setCustomFieldDialog((d) => ({ ...d, type: option.value, values: option.value === 'list' ? d.values : '' }))
+                            setCustomFieldTypeMenuOpen(false)
+                          }}
+                          className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors ${
+                            customFieldDialog.type === option.value
+                              ? 'bg-[#D4AF37]/15 text-[#D4AF37]'
+                              : 'text-white/85 hover:bg-white/5'
+                          }`}
+                        >
+                          <span>{option.label}</span>
+                          {customFieldDialog.type === option.value ? (
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M5 10.5 8.5 14 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {customFieldDialog.type === 'list' && (
-              <div>
-                <Label>List values (one per line)</Label>
-                <textarea value={customFieldDialog.values} onChange={(e) => setCustomFieldDialog((d) => ({ ...d, values: e.target.value }))} className="w-full bg-black/40 border border-white/15 text-white p-2 rounded-md" />
+              <div className="space-y-2">
+                <Label className="text-white/85">List Values</Label>
+                <p className="text-xs text-white/50">
+                  Add one value per line. These will appear in the dropdown inside Add Leads.
+                </p>
+                <textarea
+                  value={customFieldDialog.values}
+                  onChange={(e) => setCustomFieldDialog((d) => ({ ...d, values: e.target.value }))}
+                  placeholder={`Example:\nPremium\nStandard\nEnterprise`}
+                  className="min-h-32 w-full resize-y rounded-2xl bg-black/40 border border-white/15 text-white placeholder:text-white/35 p-3 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
+                />
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <input type="checkbox" checked={customFieldDialog.mandatory} onChange={() => setCustomFieldDialog((d) => ({ ...d, mandatory: !d.mandatory }))} />
-              <div className="text-white/80">Mandatory</div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={customFieldDialog.mandatory}
+                  onChange={() => setCustomFieldDialog((d) => ({ ...d, mandatory: !d.mandatory }))}
+                  className="mt-1 h-4 w-4 rounded border-white/20 bg-transparent text-[#D4AF37] focus:ring-[#D4AF37]"
+                />
+                <div>
+                  <div className="text-sm font-medium text-white/90">Mandatory field</div>
+                  <div className="text-xs text-white/55">
+                    Leads cannot be saved until this field is filled in.
+                  </div>
+                </div>
+              </label>
             </div>
           </div>
-          <DialogFooter>
-            <Button onClick={() => setCustomFieldDialog({ open: false, name: '', type: '', values: '', mandatory: false, searchLists: '', selectedLists: [] })} variant="outline">Cancel</Button>
-            <Button onClick={handleAddCustomField} className="gold-btn gold-shine">Add Field</Button>
+
+          <DialogFooter className="border-t border-white/10 px-6 py-4 flex-row items-center justify-end gap-3">
+            <Button
+              onClick={() => {
+                setCustomFieldDialog({ open: false, name: '', type: '', values: '', mandatory: false, searchLists: '', selectedLists: [] })
+                setCustomFieldTypeMenuOpen(false)
+              }}
+              variant="outline"
+              className="border-white/15 bg-transparent text-white/80 hover:bg-white/5 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddCustomField} className="gold-btn gold-shine min-w-28">
+              Add Field
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

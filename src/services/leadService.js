@@ -1,238 +1,87 @@
-import axios from 'axios'
-import API from '../utils/utils'
-import AUTH from './authService';
+import API from "../utils/utils";
+import apiClient, { normalizeApiError } from "./apiClient";
+
+function validateLeadPayload(leadData) {
+  if (!leadData?.fname || !leadData?.mobile || !leadData?.list_id) {
+    return {
+      status: 400,
+      data: { message: "First name, mobile, and list are required" },
+    };
+  }
+
+  return null;
+}
 
 async function createLead(leadData) {
+  const validationError = validateLeadPayload(leadData);
+  if (validationError) return validationError;
+
   try {
-    console.log("🔵 [LEAD SERVICE] Creating lead with data:", leadData);
-    
-    // Validate required fields
-    if (!leadData.fname || !leadData.mobile || !leadData.list_id) {
-      console.error("🔴 [LEAD SERVICE] Missing required fields");
-      return {
-        status: 400,
-        data: { message: "First name, mobile, and list are required" }
-      };
-    }
-
-    const token = AUTH.GET_TOKEN();
-    console.log("🔵 [LEAD SERVICE] Token exists?", !!token);
-    
-    if (!token) {
-      console.error("🔴 [LEAD SERVICE] No token found");
-      return {
-        status: 401,
-        data: { message: "Please login to continue" }
-      };
-    }
-
-    const config = {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    console.log("🔵 [LEAD SERVICE] Calling API:", API.LEADS);
-    
-    const response = await axios.post(API.LEADS, leadData, config);
-    
-    console.log("✅ [LEAD SERVICE] Lead created successfully!");
-    console.log("✅ [LEAD SERVICE] Response:", response.data);
-    
-    return {
-      status: response.status,
-      data: response.data
-    };
-    
-  } catch (err) {
-    console.error("🔴 [LEAD SERVICE ERROR] Failed to create lead:", err);
-    console.error("🔴 Error details:", err.response?.data);
-    
-    // Return a consistent error structure
-    return {
-      status: err.response?.status || 500,
-      data: {
-        message: err.response?.data?.message || err.message || "Failed to create lead",
-        error: err.message
-      }
-    };
+    const response = await apiClient.post(API.LEADS, leadData);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to create lead");
   }
 }
 
 async function fetchAllLeads() {
   try {
-    console.log("🔵 [LEAD SERVICE] Fetching all leads...");
-    
-    const token = AUTH.GET_TOKEN();
-    
-    if (!token) {
-      console.error("🔴 [LEAD SERVICE] No token found");
-      return {
-        status: 401,
-        data: { message: "Please login to continue" }
-      };
-    }
-
-    const config = {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    console.log("🔵 [LEAD SERVICE] Calling API:", API.LEADS);
-    
-    const response = await axios.get(API.LEADS, config);
-    
-    console.log("✅ [LEAD SERVICE] Leads fetched successfully!");
-    console.log("✅ [LEAD SERVICE] Full response:", response.data);
-    
-    // Your backend returns: { success: true, data: [...] }
-    const leadsData = response.data.data || [];
-    
-    console.log(`✅ [LEAD SERVICE] Found ${leadsData.length} leads`);
-    
+    const response = await apiClient.get(API.LEADS);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    const normalized = normalizeApiError(error, "Failed to fetch leads");
     return {
-      status: response.status,
-      data: response.data
-    };
-    
-  } catch (err) {
-    console.error("🔴 [LEAD SERVICE ERROR] Failed to fetch leads:", err);
-    console.error("🔴 Error response:", err.response?.data);
-    
-    return {
-      status: err.response?.status || 500,
+      ...normalized,
       data: {
-        message: err.response?.data?.message || err.message || "Failed to fetch leads",
-        error: err.message,
-        data: []
-      }
+        ...normalized.data,
+        data: normalized.data?.data || [],
+      },
     };
   }
 }
 
 async function deleteLead(leadId) {
   try {
-    console.log("🔵 [LEAD SERVICE] Deleting lead ID:", leadId);
-    
-    const token = AUTH.GET_TOKEN();
-    
-    if (!token) {
-      return {
-        status: 401,
-        data: { message: "Please login to continue" }
-      };
-    }
-
-    const config = {
-      headers: { 
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    const response = await axios.delete(`${API.LEADS}/${leadId}`, config);
-    
-    console.log("✅ [LEAD SERVICE] Lead deleted successfully!");
-    
-    return {
-      status: response.status,
-      data: response.data
-    };
-    
-  } catch (err) {
-    console.error("🔴 [LEAD SERVICE ERROR] Failed to delete lead:", err);
-    
-    return {
-      status: err.response?.status || 500,
-      data: {
-        message: err.response?.data?.message || err.message || "Failed to delete lead",
-        error: err.message
-      }
-    };
+    const response = await apiClient.delete(`${API.LEADS}/${leadId}`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to delete lead");
   }
 }
 
-// Keep other functions as they are
 async function fetchLeadsByListId(listId) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = {
-      headers: { Authorization: `Bearer ${token}` }
-    };
-    const response = await axios.get(`${API.LEADS}/list/${listId}`, config);
-    return {
-      status: response.status,
-      data: response.data
-    };
-  } catch (err) {
-    console.error("Error while fetching leads by list:", err);
-    return {
-      status: err.response?.status || 500,
-      data: err.response?.data || { message: "Failed to fetch leads by list" }
-    };
+    const response = await apiClient.get(`${API.LEADS}/list/${listId}`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to fetch leads by list");
   }
 }
 
 async function getLeadById(leadId) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = {
-      headers: { Authorization: `Bearer ${token}` }
-    };
-    const response = await axios.get(`${API.LEADS}/${leadId}`, config);
-    return {
-      status: response.status,
-      data: response.data
-    };
-  } catch (err) {
-    console.error("Error while fetching lead:", err);
-    return {
-      status: err.response?.status || 500,
-      data: err.response?.data || { message: "Failed to fetch lead" }
-    };
+    const response = await apiClient.get(`${API.LEADS}/${leadId}`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to fetch lead");
   }
 }
 
 async function updateLead(leadId, leadData) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = {
-      headers: { Authorization: `Bearer ${token}` }
-    };
-    const response = await axios.put(`${API.LEADS}/${leadId}`, leadData, config);
-    return {
-      status: response.status,
-      data: response.data
-    };
-  } catch (err) {
-    console.error("Error while updating lead:", err);
-    return {
-      status: err.response?.status || 500,
-      data: err.response?.data || { message: "Failed to update lead" }
-    };
+    const response = await apiClient.put(`${API.LEADS}/${leadId}`, leadData);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to update lead");
   }
 }
 
 async function searchLeads(query) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = {
-      headers: { Authorization: `Bearer ${token}` }
-    };
-    const response = await axios.post(`${API.LEADS}/search`, { query }, config);
-    return {
-      status: response.status,
-      data: response.data
-    };
-  } catch (err) {
-    console.error("Error while searching leads:", err);
-    return {
-      status: err.response?.status || 500,
-      data: err.response?.data || { message: "Failed to search leads" }
-    };
+    const response = await apiClient.post(`${API.LEADS}/search`, { query });
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to search leads");
   }
 }
 

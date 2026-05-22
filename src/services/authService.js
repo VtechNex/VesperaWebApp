@@ -1,120 +1,56 @@
-import axios from "axios";
 import API from "../utils/utils";
-import { encryptToken, decryptToken } from "../utils/crypto";
+import apiClient, { getStoredSession } from "./apiClient";
+import { encryptToken } from "../utils/crypto";
 
-/* ======================
-   USER HELPERS
-====================== */
+const STORAGE_KEY = "user";
 
 const getUser = () => {
-  try {
-    const user = localStorage.getItem("user");
-
-    if (!user) return null;
-
-    const parsedUser = JSON.parse(user);
-
-    if (typeof parsedUser !== "object" || parsedUser === null) {
-      console.warn("Corrupted user object in localStorage");
-      return null;
-    }
-
-    return parsedUser;
-  } catch (error) {
-    console.error("Invalid user in localStorage:", error);
-    localStorage.removeItem("user"); // cleanup corrupted data
-    return null;
-  }
+  const session = getStoredSession();
+  return session?.user || null;
 };
 
 const getAuthToken = () => {
-  const user = getUser();
-
-  if (!user || !user.token) {
-    console.warn("No token found in user object");
-    return null;
-  }
-
-  try {
-    const decrypted = decryptToken(user.token);
-
-    if (!decrypted) {
-      console.warn("Token decryption returned empty value");
-      return null;
-    }
-
-    return decrypted;
-  } catch (error) {
-    console.error("Token decrypt failed:", error);
-    return null;
-  }
+  const session = getStoredSession();
+  return session?.token || null;
 };
 
-/* ======================
-   AUTH FUNCTIONS
-====================== */
+const setUser = (user) => {
+  if (!user) {
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+};
 
 const login = async (email, password) => {
-  try {
-    const response = await axios.post(
-      `${API.AUTH}/log`,
-      { email, password },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+  const response = await apiClient.post(`${API.AUTH}/log`, { email, password });
+  const { token, user } = response.data || {};
 
-    const { token, user } = response.data;
-
-    if (!token || !user) {
-      throw new Error("Invalid response from server");
-    }
-
-    const encryptedToken = encryptToken(token);
-
-    if (!encryptedToken) {
-      throw new Error("Token encryption failed");
-    }
-
-    const storedUser = {
-      ...user,
-      token: encryptedToken,
-    };
-
-    localStorage.setItem("user", JSON.stringify(storedUser));
-
-    return response;
-  } catch (error) {
-    console.error("Login error:", error);
-
-    const message =
-      error?.response?.data?.error ||
-      error?.response?.data?.message ||
-      error?.message ||
-      "Server not reachable";
-
-    throw {
-      status: error?.response?.status || 500,
-      error: message,
-    };
+  if (!token || !user) {
+    throw new Error("Invalid login response");
   }
+
+  setUser({
+    ...user,
+    token: encryptToken(token),
+  });
+
+  return response;
 };
 
 const logout = () => {
-  localStorage.removeItem("user");
+  localStorage.removeItem(STORAGE_KEY);
 };
 
-/* ======================
-   EXPORT
-====================== */
+const me = async () => apiClient.get(`${API.AUTH}/me`);
 
 const AUTH = {
   LOGIN: login,
   LOGOUT: logout,
   USER: getUser,
   GET_TOKEN: getAuthToken,
+  SET_USER: setUser,
+  ME: me,
 };
 
 export default AUTH;

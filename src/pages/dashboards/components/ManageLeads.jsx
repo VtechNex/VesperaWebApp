@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Phone,
   Mail,
@@ -31,13 +32,18 @@ import {
 import LEADS from "../../../services/leadService";
 import QUALIFIERS from "../../../services/qualifierService";
 import ADMIN from "../../../services/adminService";
+import { useToast } from "../../../hooks/use-toast";
 
-function ManageLeads({ lists = [], initialViewMode }) {
+function ManageLeads({ lists = [], initialViewMode, initialListId = "" }) {
+  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const listDropdownRef = useRef(null);
   const [leads, setLeads] = useState([]);
-  const [search, setSearch] = useState("");
-  const [listFilter, setListFilter] = useState("");
-  const [viewMode, setViewMode] = useState(initialViewMode || "all");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
+  const [listFilter, setListFilter] = useState(() => searchParams.get("list") || "");
+  const [viewMode, setViewMode] = useState(() => searchParams.get("view") || initialViewMode || "all");
   const [loading, setLoading] = useState(false);
+  const [listMenuOpen, setListMenuOpen] = useState(false);
 
   const formatDateTime = (value) => {
     if (!value) return "—";
@@ -107,6 +113,32 @@ function ManageLeads({ lists = [], initialViewMode }) {
     fetchUsers();
   }, [fetchData]);
 
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    search ? next.set("search", search) : next.delete("search");
+    listFilter ? next.set("list", listFilter) : next.delete("list");
+    viewMode ? next.set("view", viewMode) : next.delete("view");
+    setSearchParams(next, { replace: true });
+  }, [listFilter, search, searchParams, setSearchParams, viewMode]);
+
+  useEffect(() => {
+    if (initialListId) {
+      setListFilter(String(initialListId));
+      setViewMode("all");
+    }
+  }, [initialListId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (listDropdownRef.current && !listDropdownRef.current.contains(event.target)) {
+        setListMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const filteredLeads = useMemo(() => {
     let data = [...leads];
 
@@ -125,10 +157,9 @@ function ManageLeads({ lists = [], initialViewMode }) {
     }
 
     if (viewMode === "unattended") {
-      // Show leads that are in Open stage only (case-insensitive)
       data = data.filter((l) => {
         const stage = (l.lead_stage || l.leadStage || '').toString().toLowerCase();
-        return stage === 'Open';
+        return stage === 'open';
       });
     }
 
@@ -146,6 +177,10 @@ function ManageLeads({ lists = [], initialViewMode }) {
 
   const getListName = (id) =>
     lists.find((l) => String(l.id) === String(id))?.name || "—";
+
+  const activeListName = listFilter
+    ? lists.find((l) => String(l.id) === String(listFilter))?.name || "Selected List"
+    : "All Lists";
 
   const getPotentialClass = (p) => {
     if (!p) return 'bg-white/5 text-white';
@@ -170,12 +205,13 @@ function ManageLeads({ lists = [], initialViewMode }) {
       const res = await LEADS.DELETE(id);
       if (res?.status === 200) {
         await fetchData();
+        toast({ title: "Lead deleted", description: "The lead was removed successfully." });
       } else {
-        window.alert('Delete failed');
+        toast({ title: "Delete failed", description: res?.data?.message || "Unable to delete the lead." });
       }
     } catch (err) {
       console.error(err);
-      window.alert('Delete failed');
+      toast({ title: "Delete failed", description: "Unable to delete the lead." });
     }
   };
 
@@ -186,11 +222,11 @@ function ManageLeads({ lists = [], initialViewMode }) {
         setSelectedLead(res.data.data);
         setViewDialogOpen(true);
       } else {
-        window.alert('Failed to fetch lead');
+        toast({ title: "Unable to open lead", description: "Lead details could not be loaded." });
       }
     } catch (err) {
       console.error(err);
-      window.alert('Failed to fetch lead');
+      toast({ title: "Unable to open lead", description: "Lead details could not be loaded." });
     }
   };
 
@@ -223,16 +259,20 @@ function ManageLeads({ lists = [], initialViewMode }) {
         });
         setEditDialogOpen(true);
       } else {
-        window.alert('Failed to fetch lead');
+        toast({ title: "Unable to edit lead", description: "Lead details could not be loaded." });
       }
     } catch (err) {
       console.error(err);
-      window.alert('Failed to fetch lead');
+      toast({ title: "Unable to edit lead", description: "Lead details could not be loaded." });
     }
   };
 
   const handleSaveEdit = async () => {
     if (!selectedLead) return;
+    if (!selectedLead.fname || !selectedLead.mobile) {
+      toast({ title: "Missing required fields", description: "First name and mobile are required." });
+      return;
+    }
     setDialogSaving(true);
     try {
       const payload = {
@@ -266,12 +306,13 @@ function ManageLeads({ lists = [], initialViewMode }) {
         setEditDialogOpen(false);
         setSelectedLead(null);
         await fetchData();
+        toast({ title: "Lead updated", description: "Changes were saved successfully." });
       } else {
-        window.alert('Update failed');
+        toast({ title: "Update failed", description: res?.data?.message || "Unable to save lead changes." });
       }
     } catch (err) {
       console.error(err);
-      window.alert('Update failed');
+      toast({ title: "Update failed", description: "Unable to save lead changes." });
     } finally {
       setDialogSaving(false);
     }
@@ -286,7 +327,7 @@ function ManageLeads({ lists = [], initialViewMode }) {
           <div>
             <h1 className="text-2xl font-semibold">Manage Leads</h1>
             <p className="text-sm text-gray-400">
-              {stats.total} total leads
+              {listFilter ? `Showing leads for ${activeListName}` : `${stats.total} total leads`}
             </p>
           </div>
 
@@ -330,18 +371,52 @@ function ManageLeads({ lists = [], initialViewMode }) {
             />
           </div>
 
-          <select
-            className="h-9 bg-black/50 border border-white/10 rounded-md px-3 text-sm"
-            value={listFilter}
-            onChange={(e) => setListFilter(e.target.value)}
-          >
-            <option value="">All Lists</option>
-            {lists.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+          <div ref={listDropdownRef} className="relative min-w-[140px]">
+            <button
+              type="button"
+              onClick={() => setListMenuOpen((prev) => !prev)}
+              className="h-9 min-w-[140px] bg-black/50 border border-white/10 rounded-md px-3 text-sm text-white flex items-center justify-between gap-3"
+            >
+              <span className="truncate">{activeListName}</span>
+              <ChevronDown className={`h-4 w-4 text-white/70 transition-transform ${listMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {listMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-[#111317] shadow-2xl z-50 overflow-hidden">
+                <div className="max-h-64 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setListFilter("");
+                      setListMenuOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                      listFilter === "" ? "bg-[#1b6fd8] text-white" : "text-white/85 hover:bg-white/5"
+                    }`}
+                  >
+                    All Lists
+                  </button>
+                  {lists.map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => {
+                        setListFilter(String(l.id));
+                        setListMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm transition-colors ${
+                        String(listFilter) === String(l.id)
+                          ? "bg-[#1b6fd8] text-white"
+                          : "text-white/85 hover:bg-white/5"
+                      }`}
+                    >
+                      <span className="block truncate">{l.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex bg-black/40 rounded-md">
             <button

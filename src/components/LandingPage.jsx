@@ -56,7 +56,7 @@ import CountUp from "./CountUp";
 import { smoothScrollTo, interceptAnchorClicks } from "../utils/smoothScroll.js";
 import SiteHeader from "./layout/SiteHeader.jsx";
 import SiteFooter from "./layout/SiteFooter.jsx";
-import AUTH from "../services/authService.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const ICONS = { Home, Building, KeyRound, Handshake, MapPin, ShieldCheck, UserRound, BadgeCheck };
 
@@ -135,6 +135,7 @@ function Underline({ align = 'center', width = 'w-[7.5rem] sm:w-[9rem] md:w-[10.
 function LoginModal({ open, setOpen }) {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -153,7 +154,7 @@ function LoginModal({ open, setOpen }) {
     setLoading(true);
 
     try {
-      const res = await AUTH.LOGIN(email, password);
+      const res = await login(email, password);
 
       console.log("LOGIN RES:", res); // ✅ debug
 

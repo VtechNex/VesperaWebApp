@@ -23,6 +23,7 @@ import ManageQualifiers from './components/Settings/ManageQualifiers.jsx'
 import UserProfileSettings from './components/Settings/UserProfileSettings.jsx'
 import LISTS from '../../services/listService'
 import LEADS from '../../services/leadService'
+import { useAuth } from '../../context/AuthContext'
 
 function MiniBarChart({ data = [], labels = [] }) {
   const max = Math.max(...data, 1)
@@ -113,6 +114,10 @@ function GenericTable({
 }
 
 function GenericGraph({ labels = [], datasets = [], width = "400px" }) {
+  const normalizedData = Array.isArray(datasets)
+    ? datasets.flatMap((entry) => Array.isArray(entry?.data) ? entry.data : [])
+    : []
+
   return (
     <div
       className="rounded-2xl p-5 card-surface flex-1"
@@ -123,7 +128,7 @@ function GenericGraph({ labels = [], datasets = [], width = "400px" }) {
           className="overflow-hidden"
           style={{ height: "200px" }}
         >
-          <MiniBarChart labels={labels} data={datasets} />
+          <MiniBarChart labels={labels} data={normalizedData} />
         </div>
 
         <div className="mt-6 flex justify-start">
@@ -145,19 +150,21 @@ function GenericGraph({ labels = [], datasets = [], width = "400px" }) {
 
 export default function Admin() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
   const onLogout = () => {
-    signout()
+    logout()
     navigate('/')
   }
 
   // Tabs or states
-  const [tab, setTab] = useState('dashboard')
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [manageLeadsOpen, setManageLeadsOpen] = useState(false)
+  const [tab, setTab] = useState(() => localStorage.getItem('vespera_admin_tab') || 'dashboard')
+  const [settingsOpen, setSettingsOpen] = useState(() => localStorage.getItem('vespera_admin_settings_open') === 'true')
+  const [manageLeadsOpen, setManageLeadsOpen] = useState(() => localStorage.getItem('vespera_admin_manage_leads_open') === 'true')
   const [activeDashboardTab, setActiveDashboardTab] = useState("Lead Stage")
   const [showAddLeadModal, setShowAddLeadModal] = useState(false)
   const [showListSelectModal, setShowListSelectModal] = useState(false)
   const [selectedLists, setSelectedLists] = useState([])
+  const [selectedLeadListId, setSelectedLeadListId] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [errorPopup, setErrorPopup] = useState("")
 
@@ -212,6 +219,18 @@ export default function Admin() {
   useEffect(() => {
     loadDashboard()
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem('vespera_admin_tab', tab)
+  }, [tab])
+
+  useEffect(() => {
+    localStorage.setItem('vespera_admin_settings_open', String(settingsOpen))
+  }, [settingsOpen])
+
+  useEffect(() => {
+    localStorage.setItem('vespera_admin_manage_leads_open', String(manageLeadsOpen))
+  }, [manageLeadsOpen])
 
   // compute total revenue from leads' potential
   const totalRevenue = useMemo(() => {
@@ -397,9 +416,12 @@ export default function Admin() {
 
   const totalValueINRFormatted = "₹" + totalValueINR.toLocaleString()
 
-  const NavItem = ({ icon: Icon, label, id }) => (
+  const NavItem = ({ icon: Icon, label, id, onClick }) => (
     <button
-      onClick={() => setTab(id)}
+      onClick={() => {
+        setTab(id)
+        onClick?.()
+      }}
       className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border transition-colors ${tab === id ? 'bg-[color:var(--gold)]/15 text-gold border-[#D4AF37]/40' : 'bg-white/5 text-white/75 hover:text-white border-white/10'
         }`}
     >
@@ -482,6 +504,7 @@ export default function Admin() {
                 type="button"
                 onClick={() => {
                   setManageLeadsOpen((prev) => !prev)
+                  setSelectedLeadListId('')
                   setTab('manage-leads-all')
                 }}
                 className={`w-full inline-flex items-center justify-between px-3 py-2 rounded-md text-sm border bg-white/5 text-white/75 hover:text-white border-white/10 ${isManageLeadsTab
@@ -504,6 +527,7 @@ export default function Admin() {
                   <NavItem icon={Users2} label="View All Leads" id="manage-leads-all"
                     onClick={() => {
                       setManageLeadsOpen((prev) => !prev)
+                      setSelectedLeadListId('')
                       setTab('manage-leads-all')
                     }} />
                   <NavItem
@@ -854,6 +878,11 @@ export default function Admin() {
               <ManageList
                 lists={lists}
                 onAddLeadClick={() => setShowAddLeadModal(true)}
+                onViewLeads={(list) => {
+                  setSelectedLeadListId(String(list?.id || ''))
+                  setManageLeadsOpen(true)
+                  setTab('manage-leads-all')
+                }}
                 onDelete={async (id) => {
                   setGlobalLoading(true)
                   try {
@@ -885,6 +914,7 @@ export default function Admin() {
                   initialViewMode={
                     tab === 'manage-leads-unattended' ? 'unattended' : 'all'
                   }
+                  initialListId={tab === 'manage-leads-all' ? selectedLeadListId : ''}
                 />
               )}
 

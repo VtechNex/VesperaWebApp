@@ -1,65 +1,45 @@
-import axios from 'axios'
-import API from '../utils/utils'
-import AUTH from './authService';
+import API from "../utils/utils";
+import apiClient, { normalizeApiError } from "./apiClient";
 
 async function createQualifier(qualifierData) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await axios.post(`${API.QUALIFIERS}`, qualifierData, config);
-    return response;
-  } catch (err) {
-    console.error("Error while creating qualifier:", err);
-    return err.response;
+    return await apiClient.post(API.QUALIFIERS, qualifierData);
+  } catch (error) {
+    return normalizeApiError(error, "Failed to create qualifier");
   }
 }
 
 async function fetchQualifiers(type) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = { headers: { Authorization: `Bearer ${token}` }, params: {} };
-    if (type) config.params.type = type;
-    const response = await axios.get(`${API.QUALIFIERS}`, config);
-    return response;
-  } catch (err) {
-    console.error("Error while fetching qualifiers:", err);
-    return err.response;
+    return await apiClient.get(API.QUALIFIERS, {
+      params: type ? { type } : {},
+    });
+  } catch (error) {
+    return normalizeApiError(error, "Failed to fetch qualifiers");
   }
 }
 
 async function getQualifierById(id) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await axios.get(`${API.QUALIFIERS}/${id}`, config);
-    return response;
-  } catch (err) {
-    console.error("Error while fetching qualifier:", err);
-    return err.response;
+    return await apiClient.get(`${API.QUALIFIERS}/${id}`);
+  } catch (error) {
+    return normalizeApiError(error, "Failed to fetch qualifier");
   }
 }
 
 async function updateQualifier(id, data) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await axios.put(`${API.QUALIFIERS}/${id}`, data, config);
-    return response;
-  } catch (err) {
-    console.error("Error while updating qualifier:", err);
-    return err.response;
+    return await apiClient.put(`${API.QUALIFIERS}/${id}`, data);
+  } catch (error) {
+    return normalizeApiError(error, "Failed to update qualifier");
   }
 }
 
 async function deleteQualifier(id) {
   try {
-    const token = AUTH.GET_TOKEN();
-    const config = { headers: { Authorization: `Bearer ${token}` } };
-    const response = await axios.delete(`${API.QUALIFIERS}/${id}`, config);
-    return response;
-  } catch (err) {
-    console.error("Error while deleting qualifier:", err);
-    return err.response;
+    return await apiClient.delete(`${API.QUALIFIERS}/${id}`);
+  } catch (error) {
+    return normalizeApiError(error, "Failed to delete qualifier");
   }
 }
 

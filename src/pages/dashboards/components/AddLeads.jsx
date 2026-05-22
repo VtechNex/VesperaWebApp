@@ -3,7 +3,10 @@ import LEADS from '../../../services/leadService'
 import LISTS from '../../../services/listService'
 import QUALIFIERS from '../../../services/qualifierService'
 import ADMIN from '../../../services/adminService'
+import SETTINGS from '../../../services/settingsService'
+import { useToast } from '../../../hooks/use-toast'
 export default function AddLeads({ lists = [], onCreate }) {
+  const { toast } = useToast();
   const [localLists, setLocalLists] = useState([]);
   const [activeTab, setActiveTab] = useState("profile");
 
@@ -38,6 +41,14 @@ export default function AddLeads({ lists = [], onCreate }) {
     leadPotential: '',
     leadStage: '',
     tags: [],
+    customFieldsData: {},
+    assignedTo: '',
+    followUpDate: '',
+    followUpTime: '',
+    followUpNotes: '',
+    followUpStatus: 'Pending',
+    repeatFollowUp: false,
+    repeatInterval: '',
     doNotFollowUp: false,
     doNotFollowUpReason: '',
     
@@ -62,6 +73,7 @@ export default function AddLeads({ lists = [], onCreate }) {
   const [productGroups, setProductGroups] = useState([])
   const [customerGroups, setCustomerGroups] = useState([])
   const [tagsList, setTagsList] = useState([])
+  const [customFields, setCustomFields] = useState([])
   const [assigneeList, setAssigneeList] = useState([])
 
   const dropdownRef = useRef(null)
@@ -100,10 +112,12 @@ export default function AddLeads({ lists = [], onCreate }) {
         const p = await QUALIFIERS.FETCH_ALL('product');
         const c = await QUALIFIERS.FETCH_ALL('customer');
         const t = await QUALIFIERS.FETCH_ALL('tag');
+        const cf = await SETTINGS.GET_CUSTOM_FIELDS();
 
         setProductGroups((p && p.data && p.data.data) ? p.data.data : []);
         setCustomerGroups((c && c.data && c.data.data) ? c.data.data : []);
         setTagsList((t && t.data && t.data.data) ? t.data.data : []);
+        setCustomFields((cf && cf.data && cf.data.data) ? cf.data.data : []);
       } catch (err) {
         console.error('Failed to fetch qualifiers', err);
       }
@@ -137,6 +151,19 @@ export default function AddLeads({ lists = [], onCreate }) {
       return;
     }
 
+    const missingMandatoryField = customFields.find((field) => {
+      if (!field.mandatory) return false;
+      const value = form.customFieldsData?.[field.name];
+      if (Array.isArray(value)) return value.length === 0;
+      return value === undefined || value === null || String(value).trim() === '';
+    });
+
+    if (missingMandatoryField) {
+      setErrorPopup(`${missingMandatoryField.name} is required`);
+      setLoading(false);
+      return;
+    }
+
     try {
       const payload = {
         fname: form.fname,
@@ -159,6 +186,7 @@ export default function AddLeads({ lists = [], onCreate }) {
         leadPotential: form.leadPotential || null,
         leadStage: form.leadStage || null,
         tags: form.tags && form.tags.length ? form.tags : null,
+        customFieldsData: form.customFieldsData || {},
         
         // Follow-up fields
         followUpDate: form.followUpDate || null,
@@ -166,6 +194,8 @@ export default function AddLeads({ lists = [], onCreate }) {
         followUpNotes: form.followUpNotes || null,
         followUpStatus: form.followUpStatus || 'Pending',
         assignedTo: form.assignedTo || null,
+        repeatFollowUp: form.repeatFollowUp || false,
+        repeatInterval: form.repeatInterval || null,
         doNotFollowUp: form.doNotFollowUp || false,
         doNotFollowUpReason: form.doNotFollowUpReason || null,
         
@@ -196,7 +226,11 @@ export default function AddLeads({ lists = [], onCreate }) {
         response = await LEADS.CREATE(payload);
       }
 
-      alert("✅ Lead added successfully!");
+      if (!response || (response.status !== 200 && response.status !== 201)) {
+        throw new Error(response?.data?.message || "Failed to add lead");
+      }
+
+      toast({ title: "Lead created", description: "The lead was saved successfully." });
 
       // Reset form completely
       setForm({
@@ -228,7 +262,8 @@ export default function AddLeads({ lists = [], onCreate }) {
         dealSize: '',
         leadPotential: '',
         leadStage: '',
-        tags: '',
+        tags: [],
+        customFieldsData: {},
         
         // Follow-up Tab
         followUpDate: '',
@@ -236,6 +271,8 @@ export default function AddLeads({ lists = [], onCreate }) {
         followUpNotes: '',
         followUpStatus: 'Pending',
         assignedTo: '',
+        repeatFollowUp: false,
+        repeatInterval: '',
         doNotFollowUp: false,
         doNotFollowUpReason: '',
         
@@ -254,10 +291,67 @@ export default function AddLeads({ lists = [], onCreate }) {
         searchQuery: '',
       });
     } catch (err) {
-      setErrorPopup(err.message || "Failed to add lead");
+      const message = err?.response?.data?.message || err.message || "Failed to add lead";
+      setErrorPopup(message);
+      toast({ title: "Lead creation failed", description: message });
     } finally {
       setLoading(false);
     }
+  }
+
+  const handleCustomFieldChange = (fieldName, value) => {
+    setForm((prev) => ({
+      ...prev,
+      customFieldsData: {
+        ...(prev.customFieldsData || {}),
+        [fieldName]: value,
+      },
+    }))
+  }
+
+  const renderCustomFieldInput = (field) => {
+    const value = form.customFieldsData?.[field.name] ?? ''
+    const baseClassName =
+      "w-[400px] bg-black text-white border border-white/15 rounded-md px-3 py-2 focus:outline-none focus:border-[#D4AF37] transition-colors"
+
+    if (field.type === 'number') {
+      return (
+        <input
+          type="number"
+          value={value}
+          onChange={(e) => handleCustomFieldChange(field.name, e.target.value)}
+          placeholder={`Enter ${field.name}`}
+          className={baseClassName}
+        />
+      )
+    }
+
+    if (field.type === 'list') {
+      return (
+        <select
+          value={value}
+          onChange={(e) => handleCustomFieldChange(field.name, e.target.value)}
+          className={baseClassName}
+        >
+          <option value="">Select {field.name}</option>
+          {(field.values || []).map((option) => (
+            <option key={`${field.id}-${option}`} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      )
+    }
+
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => handleCustomFieldChange(field.name, e.target.value)}
+        placeholder={`Enter ${field.name}`}
+        className={baseClassName}
+      />
+    )
   }
 
   return (
@@ -892,7 +986,48 @@ export default function AddLeads({ lists = [], onCreate }) {
                       </div>
                     )}
                   </div>
-                </div>                <div className="bg-black/30 p-3 flex items-center justify-between">
+                </div>
+
+                {/* Dynamic Custom Fields */}
+                {customFields.length > 0 && (
+                  <div className="mt-4 border-t border-white/10 pt-4 space-y-3">
+                    <div className="px-3">
+                      <p className="text-sm font-medium text-[#D4AF37]">Custom Qualifier Fields</p>
+                      <p className="text-xs text-white/60">
+                        Fields added in Manage Qualifiers appear here automatically.
+                      </p>
+                    </div>
+
+                    {customFields.map((field) => (
+                      <div key={field.id} className="bg-black/30 p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-5 w-5 text-[#D4AF37]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.6}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 12h14M12 5v14"
+                            />
+                          </svg>
+                          <span className="text-sm text-white/80 font-medium">
+                            {field.name}
+                            {field.mandatory ? <span className="text-[#D4AF37]"> *</span> : null}
+                          </span>
+                        </div>
+
+                        {renderCustomFieldInput(field)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="bg-black/30 p-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -922,43 +1057,6 @@ export default function AddLeads({ lists = [], onCreate }) {
                     <option value="Working">Working</option>
                     <option value="Closed">Closed</option>
                   </select>
-                </div>
-
-                {/* Tags */}
-                <div className="bg-black/30 p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2 whitespace-nowrap">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-[#D4AF37]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                    >
-                      <g transform="translate(-2, 2)">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M20 12l-8 8-8-8V4h8l8 8z"
-                        />
-                        <circle cx="9" cy="9" r="1.5" />
-                      </g>
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M20 12l-8 8-8-8V4h8l8 8z"
-                      />
-                      <circle cx="9" cy="9" r="1.5" />
-                    </svg>
-                    <span className="text-sm text-white/80 font-medium">Tags</span>
-                  </div>
-
-                  <input
-                    value={form.tags}
-                    onChange={(e) => setForm(prev => ({ ...prev, tags: e.target.value }))}
-                    placeholder="Enter tags separated by commas"
-                    className="w-[400px] bg-black text-white border border-white/15 rounded-md px-3 py-2 focus:outline-none focus:border-[#D4AF37] transition-colors"
-                  />
                 </div>
 
               </div>
@@ -1115,12 +1213,46 @@ export default function AddLeads({ lists = [], onCreate }) {
                     <span className="text-sm text-white/80 font-medium">Repeat Follow-up</span>
                   </div>
 
-                  <select
-                    disabled
-                    className="w-[400px] bg-black text-white border border-white/15 rounded-md px-3 py-2 h-10 focus:outline-none opacity-50 cursor-not-allowed"
-                  >
-                    <option>Select</option>
-                  </select>
+                  <div className="flex items-center gap-4">
+                    <div
+                      onClick={() =>
+                        setForm(prev => ({
+                          ...prev,
+                          repeatFollowUp: !prev.repeatFollowUp,
+                          repeatInterval: prev.repeatFollowUp ? '' : prev.repeatInterval,
+                        }))
+                      }
+                      className={`
+                        w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all
+                        ${form.repeatFollowUp ? "bg-[#D4AF37]" : "bg-gray-400"}
+                      `}
+                    >
+                      <div
+                        className={`
+                          bg-white w-4 h-4 rounded-full shadow-md transform transition-all
+                          ${form.repeatFollowUp ? "translate-x-6" : "translate-x-0"}
+                        `}
+                      ></div>
+                    </div>
+
+                    <select
+                      value={form.repeatInterval || ""}
+                      onChange={(e) => setForm(prev => ({ ...prev, repeatInterval: e.target.value }))}
+                      disabled={!form.repeatFollowUp}
+                      className={`w-[400px] bg-black text-white border border-white/15 rounded-md px-3 py-2 h-10 focus:outline-none transition-colors ${
+                        form.repeatFollowUp
+                          ? "opacity-100 cursor-pointer focus:border-[#D4AF37]"
+                          : "opacity-50 cursor-not-allowed"
+                      }`}
+                    >
+                      <option value="">Select</option>
+                      <option value="1 day">Daily</option>
+                      <option value="3 days">Every 3 days</option>
+                      <option value="7 days">Weekly</option>
+                      <option value="14 days">Every 2 weeks</option>
+                      <option value="1 month">Monthly</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* Do Not Follow-up */}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Trash2, Loader2, Building2, Plus, X, Pencil } from "lucide-react";
 import PROPERTIES from "../../../services/propertiesService";
+import { useToast } from "../../../hooks/use-toast";
 
 const INITIAL_STATE = {
   title: "",
@@ -13,10 +14,12 @@ const INITIAL_STATE = {
   sqft: "",
   tags: "",
   sale: true,
-  images: []
+  images: [],
+  existingImages: []
 };
 
 export default function ManagePropertiesMedia() {
+  const { toast } = useToast();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -29,7 +32,7 @@ export default function ManagePropertiesMedia() {
       setLoading(true);
       const res = await PROPERTIES.GET(1, 50);
       if (res?.status === 200) {
-        setProperties(res.data.data || []);
+        setProperties(res.data?.data || []);
       }
     } catch (error) {
       console.error("Property fetch failed:", error);
@@ -66,7 +69,7 @@ export default function ManagePropertiesMedia() {
       setLoading(true);
 
       /* ---- STEP 1: Upload Images ---- */
-      let uploadedImageUrls = [];
+      let uploadedImageUrls = Array.isArray(formData.existingImages) ? formData.existingImages : [];
 
       if (formData.images && formData.images.length > 0) {
         const imageFormData = new FormData();
@@ -78,9 +81,10 @@ export default function ManagePropertiesMedia() {
         const uploadRes = await PROPERTIES.UPLOAD_IMAGE(imageFormData);
 
         if (uploadRes?.status === 200 || uploadRes?.status === 201) {
-          uploadedImageUrls = uploadRes.data?.images?.map(image=>image.url) || [];
+          const newUrls = uploadRes.data?.images?.map(image=>image.url) || [];
+          uploadedImageUrls = [...uploadedImageUrls, ...newUrls];
         } else {
-          alert("Image upload failed.");
+          toast({ title: "Upload failed", description: "Property images could not be uploaded." });
           setLoading(false);
           return;
         }
@@ -119,13 +123,14 @@ export default function ManagePropertiesMedia() {
         setShowForm(false);
         setEditingId(null);
         fetchProperties();
+        toast({ title: editingId ? "Property updated" : "Property created", description: "The property was saved successfully." });
       } else {
-        alert(res?.data?.error || "Save failed.");
+        toast({ title: "Save failed", description: res?.data?.error || "Save failed." });
       }
 
     } catch (error) {
       console.error("Property save failed:", error);
-      alert("Failed to save property.");
+      toast({ title: "Save failed", description: "Failed to save property." });
     } finally {
       setLoading(false);
     }
@@ -139,12 +144,13 @@ export default function ManagePropertiesMedia() {
       const res = await PROPERTIES.DELETE(id);
       if (res?.status === 200) {
         setProperties((prev) => prev.filter((p) => p.id !== id));
+        toast({ title: "Property deleted", description: "The property was removed successfully." });
       } else {
-        alert(res?.data?.error || "Delete failed.");
+        toast({ title: "Delete failed", description: res?.data?.error || "Delete failed." });
       }
     } catch (error) {
       console.error("Delete failed:", error);
-      alert("Delete failed.");
+      toast({ title: "Delete failed", description: "Delete failed." });
     }
   };
 
@@ -161,9 +167,10 @@ export default function ManagePropertiesMedia() {
       beds: property.beds ? String(property.beds) : "",
       baths: property.baths ? String(property.baths) : "",
       sqft: property.sqft ? String(property.sqft) : "",
-      tags: property.tags.map(tag=>tag),
+      tags: Array.isArray(property.tags) ? property.tags.join(", ") : "",
       sale: Boolean(property.sale),
-      images: []
+      images: [],
+      existingImages: Array.isArray(property.images) ? property.images : [],
     });
 
     setShowForm(true);
@@ -171,7 +178,7 @@ export default function ManagePropertiesMedia() {
 
   const cancelEdit = () => {
     setEditingId(null);
-    setFormData(INITIAL_STATE);
+    setFormData({ ...INITIAL_STATE, existingImages: [] });
     setShowForm(false);
   };
 

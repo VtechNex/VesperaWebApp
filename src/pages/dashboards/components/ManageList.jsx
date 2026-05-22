@@ -18,7 +18,8 @@ function ManageList({
   onCreate,
   onDelete,
   onUpdate,
-  onAddLeadClick
+  onAddLeadClick,
+  onViewLeads
 }) {
   const [lists, setLists] = useState([])
   const [name, setName] = useState('')
@@ -314,7 +315,10 @@ function ManageList({
               </p>
 
               {/* View Leads Button */}
-              <Button className="bg-[#007BFF] hover:bg-[#0066CC] text-white w-48 font-medium py-2 rounded-lg flex items-center justify-center gap-2 mb-5">
+              <Button
+                onClick={() => onViewLeads?.(l)}
+                className="bg-[#007BFF] hover:bg-[#0066CC] text-white w-48 font-medium py-2 rounded-lg flex items-center justify-center gap-2 mb-5"
+              >
                 <Users className="w-4 h-4" />
                 View Leads ({l.total_leads || 0})
               </Button>

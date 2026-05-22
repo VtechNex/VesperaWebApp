@@ -2,6 +2,8 @@ import React from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from './ui/button';
 
+const isDevelopment = import.meta.env.DEV;
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -39,7 +41,7 @@ class ErrorBoundary extends React.Component {
               <p className="text-white/70 mb-6">
                 We encountered an unexpected error. Please try refreshing the page or return to the homepage.
               </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {isDevelopment && this.state.error && (
                 <div className="mb-6 p-4 rounded-lg bg-red-900/20 border border-red-500/30 text-left">
                   <p className="text-red-400 text-sm font-mono break-all">
                     {this.state.error.toString()}
