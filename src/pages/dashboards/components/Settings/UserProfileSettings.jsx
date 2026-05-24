@@ -80,7 +80,7 @@ export default function UserProfileSettings() {
 
   useEffect(() => {
     loadProfile()
-  }, [toast])
+  }, [])
 
   const updateField = (field) => (e) => {
     const value = e.target.value

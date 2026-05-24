@@ -55,10 +55,10 @@ const deleteProperty = async (id) => {
   }
 };
 
-const getPropertiesPublic = async (page = 1, limit = 50) => {
+const getPropertiesPublic = async (page = 1, limit = 50, filters = {}) => {
   try {
     return await apiClient.get(`${API.GLOBAL}/properties/all`, {
-      params: { page, limit },
+      params: { page, limit, ...filters },
     });
   } catch (error) {
     return normalizeApiError(error, "Failed to fetch public properties");

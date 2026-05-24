@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import PROPERTIES from "../../../services/propertiesService";
 import { useToast } from "../../../hooks/use-toast";
@@ -54,6 +54,7 @@ function mapPropertyToForm(property) {
 
 export default function ManagePropertiesMedia({ theme = "dark" }) {
   const { toast } = useToast();
+  const toastRef = useRef(toast);
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -67,6 +68,10 @@ export default function ManagePropertiesMedia({ theme = "dark" }) {
 
   const propertyCategory = useMemo(() => getPropertyCategory(formData.type), [formData.type]);
 
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
   const fetchProperties = useCallback(async () => {
     try {
       setLoading(true);
@@ -76,11 +81,11 @@ export default function ManagePropertiesMedia({ theme = "dark" }) {
       }
     } catch (error) {
       console.error("Property fetch failed:", error);
-      toast({ title: "Load failed", description: "Property listings could not be loaded." });
+      toastRef.current({ title: "Load failed", description: "Property listings could not be loaded." });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchProperties();

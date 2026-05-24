@@ -70,7 +70,7 @@ export default function CompanyProfileSettings() {
 
   useEffect(() => {
     loadCompany()
-  }, [toast])
+  }, [])
 
   const updateSection = (section, field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value

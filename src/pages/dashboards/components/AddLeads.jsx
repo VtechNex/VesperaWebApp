@@ -108,7 +108,7 @@ export default function AddLeads({ lists = [], onCreate }) {
         const p = await QUALIFIERS.FETCH_ALL('product');
         const c = await QUALIFIERS.FETCH_ALL('customer');
         const t = await QUALIFIERS.FETCH_ALL('tag');
-        const cf = await SETTINGS.GET_CUSTOM_FIELDS();
+        const cf = await SETTINGS.GET_CUSTOM_FIELDS_FORM_METADATA();
 
         setProductGroups((p && p.data && p.data.data) ? p.data.data : []);
         setCustomerGroups((c && c.data && c.data.data) ? c.data.data : []);
@@ -116,6 +116,11 @@ export default function AddLeads({ lists = [], onCreate }) {
         setCustomFields((cf && cf.data && cf.data.data) ? cf.data.data : []);
       } catch (err) {
         console.error('Failed to fetch qualifiers', err);
+        toast({
+          title: 'Lead form metadata unavailable',
+          description: err?.response?.data?.message || 'Some optional lead fields could not be loaded.',
+        })
+        setCustomFields([]);
       }
     }
 
@@ -124,6 +129,23 @@ export default function AddLeads({ lists = [], onCreate }) {
   }, [])
 
   useEffect(() => setLocalLists(lists || []), [lists])
+
+  useEffect(() => {
+    setForm((prev) => {
+      const nextCustomFieldsData = {}
+
+      customFields.forEach((field) => {
+        if (Object.prototype.hasOwnProperty.call(prev.customFieldsData || {}, field.name)) {
+          nextCustomFieldsData[field.name] = prev.customFieldsData[field.name]
+        }
+      })
+
+      return {
+        ...prev,
+        customFieldsData: nextCustomFieldsData,
+      }
+    })
+  }, [customFields])
 
   // Close list dropdown on outside click
   useEffect(() => {

@@ -5,7 +5,7 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL: 'http://localhost:5173',
     headless: true,
     screenshot: 'only-on-failure',
     video: 'off',
@@ -14,8 +14,8 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
   },
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1 --port 5173',
-    url: 'http://127.0.0.1:5173',
+    command: 'npm run preview -- --host localhost --port 5173',
+    url: 'http://localhost:5173',
     reuseExistingServer: true,
     timeout: 120_000,
   },

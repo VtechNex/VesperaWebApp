@@ -35,6 +35,10 @@ async function getCustomFields() {
   return apiClient.get(`${API.SETTINGS}/custom-fields`);
 }
 
+async function getCustomFieldsFormMetadata() {
+  return apiClient.get(`${API.SETTINGS}/custom-fields/form-metadata`);
+}
+
 async function createCustomField(payload) {
   return apiClient.post(`${API.SETTINGS}/custom-fields`, payload);
 }
@@ -55,6 +59,7 @@ const SETTINGS = {
   SAVE_COMPANY_PROFILE: saveCompanyProfile,
   UPLOAD_BRANDING: uploadBranding,
   GET_CUSTOM_FIELDS: getCustomFields,
+  GET_CUSTOM_FIELDS_FORM_METADATA: getCustomFieldsFormMetadata,
   CREATE_CUSTOM_FIELD: createCustomField,
   UPDATE_CUSTOM_FIELD: updateCustomField,
   DELETE_CUSTOM_FIELD: deleteCustomField,
