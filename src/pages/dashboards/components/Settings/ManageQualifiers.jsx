@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../../../../components/ui/dialog'
+import ConfirmDialog from '../../../../components/ui/ConfirmDialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../../components/ui/tabs'
 import { useToast } from '../../../../hooks/use-toast'
 
@@ -46,6 +47,7 @@ function ManageQualifiers() {
   const [editDialog, setEditDialog] = useState({ open: false, listType: null, id: null, name: '' })
   const [addDialog, setAddDialog] = useState({ open: false, type: null, value: '' })
   const [customFieldTypeMenuOpen, setCustomFieldTypeMenuOpen] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState({ open: false, id: null, listType: null, name: '' })
   const [customFieldDialog, setCustomFieldDialog] = useState({
     open: false,
     name: '',
@@ -159,11 +161,11 @@ function ManageQualifiers() {
         await fetchAllQualifiers()
         toast({ title: 'Qualifier updated', description: 'Changes were saved successfully.' })
       } else {
-        window.alert('Update failed')
+        toast({ title: 'Update failed', description: res?.data?.message || 'Unable to update qualifier.' })
       }
     } catch (err) {
       console.error(err)
-      window.alert('Update failed')
+      toast({ title: 'Update failed', description: err?.response?.data?.message || 'Unable to update qualifier.' })
     }
 
     setEditDialog({ open: false, listType: null, id: null, name: '' })
@@ -177,21 +179,32 @@ function ManageQualifiers() {
     else if (listType === 'customer') target = findById(customerGroups)
     else if (listType === 'tag') target = findById(tags)
 
-    if (target && !window.confirm(`Delete qualifier "${target.name}"?`)) return
+    if (target) {
+      setDeleteDialog({
+        open: true,
+        id,
+        listType,
+        name: target.name,
+      })
+    }
+  }
 
+  const confirmDelete = async () => {
+    if (!deleteDialog.id) return
     try {
-      const res = await QUALIFIERS.DELETE(id)
+      const res = await QUALIFIERS.DELETE(deleteDialog.id)
       if (res?.data?.success) {
         await fetchAllQualifiers()
         toast({ title: 'Qualifier deleted', description: 'The qualifier was removed successfully.' })
       } else {
-        window.alert('Delete failed')
+        toast({ title: 'Delete failed', description: res?.data?.message || 'Unable to delete qualifier.' })
       }
     } catch (err) {
       console.error(err)
-      window.alert('Delete failed')
+      toast({ title: 'Delete failed', description: err?.response?.data?.message || 'Unable to delete qualifier.' })
     }
 
+    setDeleteDialog({ open: false, id: null, listType: null, name: '' })
     setMenuOpenId(null)
   }
 
@@ -211,7 +224,7 @@ function ManageQualifiers() {
       toast({ title: 'Qualifier created', description: 'The new qualifier is now available.' })
     } catch (err) {
       console.error(err)
-      window.alert('Add failed')
+      toast({ title: 'Add failed', description: err?.response?.data?.message || 'Unable to add qualifier.' })
     }
 
     setAddDialog({ open: false, type: null, value: '' })
@@ -748,6 +761,33 @@ function ManageQualifiers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) =>
+          setDeleteDialog((prev) => ({
+            ...prev,
+            open,
+            id: open ? prev.id : null,
+            listType: open ? prev.listType : null,
+            name: open ? prev.name : '',
+          }))
+        }
+        title="Delete Qualifier?"
+        description="This action cannot be undone. Are you sure you want to delete this qualifier?"
+        details={
+          deleteDialog.name ? (
+            <div className="space-y-1">
+              <div className="font-medium text-white">{deleteDialog.name}</div>
+              <div className="text-white/60">{deleteDialog.listType || 'Qualifier'}</div>
+            </div>
+          ) : null
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        destructive
+      />
     </div>
   )
 }

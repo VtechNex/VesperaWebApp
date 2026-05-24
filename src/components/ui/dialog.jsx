@@ -1,4 +1,5 @@
 import React, { createContext, useContext } from 'react'
+import { createPortal } from 'react-dom'
 
 const DialogContext = createContext(null)
 
@@ -9,7 +10,7 @@ export function Dialog({ open, onOpenChange, children }) {
 export function DialogContent({ children, className = '' }) {
   const ctx = useContext(DialogContext)
   if (!ctx?.open) return null
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => ctx.onOpenChange?.(false)} />
       <div
@@ -21,7 +22,8 @@ export function DialogContent({ children, className = '' }) {
         }}
       />
       <div className={`relative z-10 rounded-lg ${className}`}>{children}</div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

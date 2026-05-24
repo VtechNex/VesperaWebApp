@@ -3,8 +3,11 @@ import { Button } from '../../../../components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../../../components/ui/dialog'
 import { MoreVertical } from 'lucide-react'
 import { Label } from '../../../../components/ui/label'
+import ConfirmDialog from '../../../../components/ui/ConfirmDialog'
+import { useToast } from '../../../../hooks/use-toast'
 
 function LeadStageCustomization() {
+  const { toast } = useToast()
   const initialStages = [
     { id: 'open', name: 'Open', state: 'New', locked: true },
     { id: 'inactive', name: 'Inactive', state: '', locked: false },
@@ -40,6 +43,10 @@ function LeadStageCustomization() {
     open: false,
     items: [],
   })
+  const [deleteStageDialog, setDeleteStageDialog] = useState({
+    open: false,
+    stage: null,
+  })
 
   const totalStages = stages.length
 
@@ -67,11 +74,23 @@ function LeadStageCustomization() {
 
   const handleDeleteStage = (stage) => {
     if (stage.state === 'New' || stage.state === 'Won' || stage.state === 'Lost') {
-      window.alert('Stages with states New, Won or Lost cannot be deleted.')
+      toast({
+        title: 'Delete blocked',
+        description: 'Stages with states New, Won or Lost cannot be deleted.',
+      })
       return
     }
-    if (!window.confirm(`Delete stage "${stage.name}"?`)) return
-    setStages((prev) => prev.filter((s) => s.id !== stage.id))
+    setDeleteStageDialog({ open: true, stage })
+  }
+
+  const confirmDeleteStage = () => {
+    if (!deleteStageDialog.stage) return
+    setStages((prev) => prev.filter((s) => s.id !== deleteStageDialog.stage.id))
+    toast({
+      title: 'Stage deleted',
+      description: `"${deleteStageDialog.stage.name}" was removed successfully.`,
+    })
+    setDeleteStageDialog({ open: false, stage: null })
     setMenuOpenId(null)
   }
 
@@ -307,6 +326,25 @@ function LeadStageCustomization() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteStageDialog.open}
+        onOpenChange={(open) => setDeleteStageDialog((prev) => ({ ...prev, open, stage: open ? prev.stage : null }))}
+        title="Delete Stage?"
+        description="This action cannot be undone. Are you sure you want to delete this lead stage?"
+        details={
+          deleteStageDialog.stage ? (
+            <div className="space-y-1">
+              <div className="font-medium text-white">{deleteStageDialog.stage.name}</div>
+              <div className="text-white/60">{deleteStageDialog.stage.state || 'Custom stage'}</div>
+            </div>
+          ) : null
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        onConfirm={confirmDeleteStage}
+        destructive
+      />
     </div>
   )
 }

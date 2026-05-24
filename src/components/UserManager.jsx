@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import ConfirmDialog from './ui/ConfirmDialog'
 import { useToast } from '../hooks/use-toast.js'
 // import { useAuth } from '../context/AuthProvider'
 
@@ -9,6 +10,7 @@ export default function UserManager() {
   const { addUser, removeUser, listUsers, user } = useAuth()
   const { toast } = useToast()
   const [form, setForm] = useState({ id: '', email: '', password: '', role: 'sales', name: '' })
+  const [removeTarget, setRemoveTarget] = useState(null)
   const users = useMemo(() => listUsers(), [listUsers, user])
 
   const onAdd = (e) => {
@@ -24,13 +26,13 @@ export default function UserManager() {
 
   const onRemove = (identifier) => {
     if (!identifier) return
-    if (!window.confirm(`Remove user ${identifier}?`)) return
     try {
       const removed = removeUser(identifier)
       toast({ title: 'User removed', description: `${removed?.id || removed?.email}` })
     } catch (err) {
       toast({ title: 'Failed to remove', description: err?.message || 'Unknown error' })
     }
+    setRemoveTarget(null)
   }
 
   return (
@@ -88,13 +90,27 @@ export default function UserManager() {
                 {(u.role === 'superadmin') ? (
                   <span className="text-white/40 text-xs">protected</span>
                 ) : (
-                  <Button variant="ghost" className="text-white/70 hover:text-white" onClick={() => onRemove(u.email || u.id)}>Remove</Button>
+                  <Button variant="ghost" className="text-white/70 hover:text-white" onClick={() => setRemoveTarget(u.email || u.id)}>Remove</Button>
                 )}
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(removeTarget)}
+        onOpenChange={(open) => {
+          if (!open) setRemoveTarget(null)
+        }}
+        title="Remove User?"
+        description="This action cannot be undone. Are you sure you want to remove this user?"
+        details={removeTarget ? <div className="font-medium text-white">{removeTarget}</div> : null}
+        cancelLabel="Cancel"
+        confirmLabel="Remove"
+        onConfirm={() => onRemove(removeTarget)}
+        destructive
+      />
     </div>
   )
 }

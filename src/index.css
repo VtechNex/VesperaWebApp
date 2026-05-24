@@ -93,6 +93,106 @@
   100% { box-shadow: 0 8px 24px -4px rgba(200,170,110,0.35); } 
 } 
 
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.admin-theme-light .admin-panel-page,
+.admin-theme-light .admin-modal {
+  color: #0f172a;
+}
+
+.admin-theme-light .admin-panel-page .card-surface,
+.admin-theme-light .admin-modal .card-surface {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 18px 50px -30px rgba(15, 23, 42, 0.28);
+}
+
+.admin-theme-light .admin-panel-page [class*="bg-black"],
+.admin-theme-light .admin-modal [class*="bg-black"] {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="border-white"],
+.admin-theme-light .admin-modal [class*="border-white"] {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white/40"],
+.admin-theme-light .admin-modal [class*="text-white/40"] {
+  color: rgba(15, 23, 42, 0.42) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white/50"],
+.admin-theme-light .admin-modal [class*="text-white/50"] {
+  color: rgba(15, 23, 42, 0.5) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white/60"],
+.admin-theme-light .admin-modal [class*="text-white/60"] {
+  color: rgba(15, 23, 42, 0.6) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white/70"],
+.admin-theme-light .admin-modal [class*="text-white/70"] {
+  color: rgba(15, 23, 42, 0.7) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white/80"],
+.admin-theme-light .admin-modal [class*="text-white/80"] {
+  color: rgba(15, 23, 42, 0.8) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white/90"],
+.admin-theme-light .admin-modal [class*="text-white/90"] {
+  color: rgba(15, 23, 42, 0.9) !important;
+}
+
+.admin-theme-light .admin-panel-page [class*="text-white"],
+.admin-theme-light .admin-modal [class*="text-white"] {
+  color: #0f172a !important;
+}
+
+.admin-theme-light .admin-panel-page input:not([type="checkbox"]):not([type="radio"]),
+.admin-theme-light .admin-panel-page select,
+.admin-theme-light .admin-panel-page textarea,
+.admin-theme-light .admin-modal input:not([type="checkbox"]):not([type="radio"]),
+.admin-theme-light .admin-modal select,
+.admin-theme-light .admin-modal textarea {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+}
+
+.admin-theme-light .admin-panel-page input::placeholder,
+.admin-theme-light .admin-panel-page textarea::placeholder,
+.admin-theme-light .admin-modal input::placeholder,
+.admin-theme-light .admin-modal textarea::placeholder {
+  color: rgba(15, 23, 42, 0.42) !important;
+}
+
+.admin-theme-light .admin-panel-page table thead,
+.admin-theme-light .admin-modal table thead {
+  background: rgba(15, 23, 42, 0.05) !important;
+}
+
+.admin-theme-light .admin-panel-page table,
+.admin-theme-light .admin-modal table {
+  color: #0f172a;
+}
+
+.admin-theme-light .admin-panel-page .bg-red-500,
+.admin-theme-light .admin-panel-page .bg-red-600,
+.admin-theme-light .admin-panel-page .bg-red-500\/20,
+.admin-theme-light .admin-modal .bg-red-500,
+.admin-theme-light .admin-modal .bg-red-600,
+.admin-theme-light .admin-modal .bg-red-500\/20 {
+  color: white !important;
+}
+
 /* ============================= */
 /* Custom input fixes and tweaks */
 /* ============================= */

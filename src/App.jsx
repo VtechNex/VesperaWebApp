@@ -7,6 +7,7 @@ import { Toaster } from "./components/ui/toaster.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 
 const LandingPage = lazy(() => import("./components/LandingPage.jsx"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin.jsx"));
 const SuperAdmin = lazy(() => import("./pages/dashboards/SuperAdmin.jsx"));
 const Admin = lazy(() => import("./pages/dashboards/Admin.jsx"));
 const Sales = lazy(() => import("./pages/dashboards/Sales.jsx"));
@@ -22,6 +23,7 @@ export default function App() {
             <Suspense fallback={<Loading message="Loading Vespera Estates..." />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
                 <Route
                   path="/dashboard/superadmin"
                   element={

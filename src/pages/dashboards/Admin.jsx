@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { Button } from '../../components/ui/button'
 import { useNavigate } from 'react-router-dom'
-import { Users } from 'lucide-react'
+import { Moon, RefreshCw, Sun, Users } from 'lucide-react'
 import { ChevronDown, Building2, Image as ImageIcon } from "lucide-react"
 import ManagePropertiesMedia from './components/ManagePropertiesMedia'
 import {
@@ -23,7 +23,25 @@ import ManageQualifiers from './components/Settings/ManageQualifiers.jsx'
 import UserProfileSettings from './components/Settings/UserProfileSettings.jsx'
 import LISTS from '../../services/listService'
 import LEADS from '../../services/leadService'
+import QUALIFIERS from '../../services/qualifierService'
+import ErrorState from '../../components/ErrorState'
+import EmptyState from '../../components/EmptyState'
+import DashboardChartSkeleton from '../../components/ui/DashboardChartSkeleton'
+import Skeleton from '../../components/ui/Skeleton'
+import StatCardSkeleton from '../../components/ui/StatCardSkeleton'
+import TableSkeleton from '../../components/ui/TableSkeleton'
 import { useAuth } from '../../context/AuthContext'
+import { buildDashboardAnalytics } from '../../utils/dashboardAnalytics'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 function MiniBarChart({ data = [], labels = [] }) {
   const max = Math.max(...data, 1)
@@ -148,9 +166,175 @@ function GenericGraph({ labels = [], datasets = [], width = "400px" }) {
   );
 }
 
+const DASHBOARD_METRICS = [
+  "Lead Stage",
+  "Deal Size",
+  "Product Groups",
+  "Customer Groups",
+  "Tags",
+  "Potential",
+]
+
+const DASHBOARD_METRIC_ICONS = {
+  "Lead Stage": (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18l-6 8v6l-6 3v-9L3 4z" />
+    </svg>
+  ),
+  "Deal Size": (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H7" strokeWidth={1.6} strokeLinecap="round" />
+    </svg>
+  ),
+  "Product Groups": (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+      <circle cx="4" cy="7" r="1.2" fill="currentColor" />
+      <path d="M8.5 7h12.5" strokeLinecap="round" />
+      <circle cx="4" cy="12" r="1.2" fill="currentColor" />
+      <path d="M8.5 12h12.5" strokeLinecap="round" />
+      <circle cx="4" cy="17" r="1.2" fill="currentColor" />
+      <path d="M8.5 17h12.5" strokeLinecap="round" />
+    </svg>
+  ),
+  "Customer Groups": (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <rect x="10.5" y="3.5" width="3" height="3" rx="0.8" />
+      <path d="M12 7v4" strokeLinecap="round" />
+      <path d="M6 11h12" strokeLinecap="round" />
+      <path d="M6 11v3" strokeLinecap="round" />
+      <path d="M12 11v3" strokeLinecap="round" />
+      <path d="M18 11v3" strokeLinecap="round" />
+      <rect x="4.5" y="14.5" width="3" height="3" rx="0.8" />
+      <rect x="10.5" y="14.5" width="3" height="3" rx="0.8" />
+      <rect x="16.5" y="14.5" width="3" height="3" rx="0.8" />
+    </svg>
+  ),
+  Tags: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <g transform="translate(-2, 2)">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 12l-8 8-8-8V4h8l8 8z" />
+        <circle cx="9" cy="9" r="1.5" />
+      </g>
+    </svg>
+  ),
+  Potential: (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path d="M12 17l-5 3 2-6-5-4h6L12 4l2 6h6l-5 4 2 6z" strokeWidth={1.6} />
+    </svg>
+  ),
+}
+
+function shortenLabel(label, max = 14) {
+  if (!label) return "—"
+  return label.length > max ? `${label.slice(0, max - 1)}…` : label
+}
+
+function DashboardMetricTable({ title, rows, total, theme = 'dark' }) {
+  const isLight = theme === 'light'
+  return (
+    <div className={`rounded-2xl border p-5 ${isLight ? 'border-black/10 bg-white/90 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.28)]' : 'border-white/10 bg-black/30'}`}>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <div className={`text-sm font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{title}</div>
+          <div className={`mt-1 text-xs ${isLight ? 'text-slate-500' : 'text-white/50'}`}>Live grouped counts for the selected scope</div>
+        </div>
+        <div className={`rounded-xl border px-3 py-2 text-right ${isLight ? 'border-[#D4AF37]/30 bg-[#FFF7E0]' : 'border-[#D4AF37]/20 bg-[#D4AF37]/10'}`}>
+          <div className={`text-[11px] uppercase tracking-[0.2em] ${isLight ? 'text-slate-500' : 'text-white/45'}`}>Total</div>
+          <div className="text-lg font-semibold text-[#D4AF37]">{total}</div>
+        </div>
+      </div>
+
+      <div className={`overflow-hidden rounded-xl border ${isLight ? 'border-black/10' : 'border-white/10'}`}>
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className={isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/[0.04] text-white/60'}>
+              <th className="px-4 py-3 text-left">Category</th>
+              <th className="px-4 py-3 text-right">Count</th>
+            </tr>
+          </thead>
+          <tbody className={isLight ? 'text-slate-800' : 'text-white/85'}>
+            {rows.map((row) => (
+              <tr key={row.label} className={isLight ? 'border-t border-black/10' : 'border-t border-white/10'}>
+                <td className="px-4 py-3">{row.label}</td>
+                <td className="px-4 py-3 text-right font-semibold text-[#D4AF37]">{row.count}</td>
+              </tr>
+            ))}
+            <tr className={`border-t font-semibold ${isLight ? 'border-black/15 text-slate-900' : 'border-white/20 text-white'}`}>
+              <td className="px-4 py-3">Total</td>
+              <td className="px-4 py-3 text-right">{total}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function DashboardMetricChart({ title, rows, total, theme = 'dark' }) {
+  const isLight = theme === 'light'
+  return (
+    <div className={`rounded-2xl border p-5 ${isLight ? 'border-black/10 bg-white/90 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.28)]' : 'border-white/10 bg-black/30'}`}>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <div className={`text-sm font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{title}</div>
+          <div className={`mt-1 text-xs ${isLight ? 'text-slate-500' : 'text-white/50'}`}>Responsive bar chart for the selected metric</div>
+        </div>
+        <div className={`rounded-xl border px-3 py-2 text-right ${isLight ? 'border-[#D4AF37]/30 bg-[#FFF7E0]' : 'border-[#D4AF37]/20 bg-[#D4AF37]/10'}`}>
+          <div className={`text-[11px] uppercase tracking-[0.2em] ${isLight ? 'text-slate-500' : 'text-white/45'}`}>Total</div>
+          <div className="text-lg font-semibold text-[#D4AF37]">{total}</div>
+        </div>
+      </div>
+
+      <div className="h-[340px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} margin={{ top: 12, right: 20, left: 0, bottom: 72 }}>
+            <defs>
+              <linearGradient id="vesperaGoldBar" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stopColor="#F1D27A" />
+                <stop offset="60%" stopColor="#D4AF37" />
+                <stop offset="100%" stopColor="#A67C00" />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke={isLight ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.08)"} vertical={false} />
+            <XAxis
+              dataKey="label"
+              interval={0}
+              angle={-30}
+              textAnchor="end"
+              height={72}
+              tick={{ fill: isLight ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.7)", fontSize: 11 }}
+              tickFormatter={(value) => shortenLabel(value, 16)}
+            />
+            <YAxis allowDecimals={false} tick={{ fill: isLight ? "rgba(15,23,42,0.72)" : "rgba(255,255,255,0.7)", fontSize: 11 }} />
+            <Tooltip
+              cursor={{ fill: isLight ? "rgba(15,23,42,0.04)" : "rgba(255,255,255,0.04)" }}
+              contentStyle={{
+                background: isLight ? "#FFFFFF" : "#111111",
+                border: isLight ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(212,175,55,0.25)",
+                borderRadius: "12px",
+                color: isLight ? "#0F172A" : "#ffffff",
+                boxShadow: isLight ? "0 18px 40px -24px rgba(15,23,42,0.35)" : "none",
+              }}
+              itemStyle={{ color: isLight ? "#A67C00" : "#F5E7B2" }}
+              labelStyle={{ color: isLight ? "#0F172A" : "#FFFFFF", fontWeight: 600 }}
+              formatter={(value) => [`${value}`, "Count"]}
+              labelFormatter={(label) => label}
+            />
+            <Bar dataKey="count" radius={[8, 8, 0, 0]} maxBarSize={56}>
+              {rows.map((row) => (
+                <Cell key={row.label} fill="url(#vesperaGoldBar)" />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
 export default function Admin() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const onLogout = () => {
     logout()
     navigate('/')
@@ -161,6 +345,7 @@ export default function Admin() {
   const [settingsOpen, setSettingsOpen] = useState(() => localStorage.getItem('vespera_admin_settings_open') === 'true')
   const [manageLeadsOpen, setManageLeadsOpen] = useState(() => localStorage.getItem('vespera_admin_manage_leads_open') === 'true')
   const [activeDashboardTab, setActiveDashboardTab] = useState("Lead Stage")
+  const [dashboardTheme, setDashboardTheme] = useState(() => localStorage.getItem('vespera_dashboard_theme') || 'dark')
   const [showAddLeadModal, setShowAddLeadModal] = useState(false)
   const [showListSelectModal, setShowListSelectModal] = useState(false)
   const [selectedLists, setSelectedLists] = useState([])
@@ -168,50 +353,58 @@ export default function Admin() {
   const [searchTerm, setSearchTerm] = useState('')
   const [errorPopup, setErrorPopup] = useState("")
 
-  // Domain data - using demo data
   const [lists, setLists] = useState([])
   const [leads, setLeads] = useState([])
+  const [tagNameMap, setTagNameMap] = useState({})
 
-  // Dashboard derived data states
   const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
+  const [hasLoadedDashboardOnce, setHasLoadedDashboardOnce] = useState(false)
 
-  // generic UI state flags
   const [globalLoading, setGlobalLoading] = useState(false)
+  const [leadRefreshKey, setLeadRefreshKey] = useState(0)
 
-  // Searchable List Dropdown form state
-  const [form, setForm] = useState({
-    listId: "",
-    searchQuery: "",
-    isDropdownOpen: false,
-  })
-
-  const update = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
+  const update = (field, value) => ({ field, value })
 
   const isManageLeadsTab =
     tab === 'manage-leads' ||
     tab === 'manage-leads-all' ||
     tab === 'manage-leads-unattended'
 
-  // Load data from backend
   const loadDashboard = async () => {
     setLoadingDashboard(true)
     setDashboardError('')
     try {
-      const listsResponse = await LISTS.FETCH_WITH_COUNTS()
-      const leadsResponse = await LEADS.FETCH_ALL()
+      const [listsResponse, leadsResponse, tagResponse] = await Promise.allSettled([
+        LISTS.FETCH_WITH_COUNTS(),
+        LEADS.FETCH_ALL(),
+        QUALIFIERS.FETCH_ALL("tag"),
+      ])
 
-      if (listsResponse?.status === 200 && listsResponse?.data?.data) {
-        setLists(listsResponse.data.data)
+      if (listsResponse.status === 'fulfilled' && listsResponse.value?.status === 200 && listsResponse.value?.data?.data) {
+        setLists(listsResponse.value.data.data)
       }
-      if (leadsResponse?.status === 200 && leadsResponse?.data?.data) {
-        setLeads(leadsResponse.data.data)
+      if (leadsResponse.status === 'fulfilled' && leadsResponse.value?.status === 200 && leadsResponse.value?.data?.data) {
+        setLeads(leadsResponse.value.data.data)
+      }
+      if (tagResponse.status === 'fulfilled' && tagResponse.value?.status === 200 && Array.isArray(tagResponse.value.data?.data)) {
+        setTagNameMap(
+          tagResponse.value.data.data.reduce((accumulator, tag) => {
+            accumulator[String(tag.id)] = tag.name || String(tag.id)
+            return accumulator
+          }, {})
+        )
+      }
+
+      if (listsResponse.status !== 'fulfilled' || leadsResponse.status !== 'fulfilled') {
+        throw new Error('Dashboard data could not be loaded.')
       }
     } catch (err) {
       setDashboardError(err?.message || 'Failed to load dashboard data')
       console.error('Dashboard load error:', err)
     } finally {
       setLoadingDashboard(false)
+      setHasLoadedDashboardOnce(true)
     }
   }
 
@@ -231,6 +424,10 @@ export default function Admin() {
   useEffect(() => {
     localStorage.setItem('vespera_admin_manage_leads_open', String(manageLeadsOpen))
   }, [manageLeadsOpen])
+
+  useEffect(() => {
+    localStorage.setItem('vespera_dashboard_theme', dashboardTheme)
+  }, [dashboardTheme])
 
   // compute total revenue from leads' potential
   const totalRevenue = useMemo(() => {
@@ -416,13 +613,62 @@ export default function Admin() {
 
   const totalValueINRFormatted = "₹" + totalValueINR.toLocaleString()
 
+  const selectedDashboardListName = useMemo(() => {
+    if (!selectedLeadListId) return "All Lists"
+    return lists.find((list) => String(list.id) === String(selectedLeadListId))?.name || "Selected List"
+  }, [lists, selectedLeadListId])
+
+  const dashboardAnalytics = useMemo(
+    () => buildDashboardAnalytics(leads, selectedLeadListId, activeDashboardTab, { tagNameMap }),
+    [activeDashboardTab, leads, selectedLeadListId, tagNameMap]
+  )
+
+  const dashboardRows = dashboardAnalytics.rows
+  const dashboardScopedLeads = dashboardAnalytics.scopedLeads
+  const dashboardTotal = dashboardAnalytics.total
+  const showDashboardSkeleton = loadingDashboard && !hasLoadedDashboardOnce
+  const showDashboardRefreshing = loadingDashboard && hasLoadedDashboardOnce
+  const isLightDashboard = dashboardTheme === 'light'
+
+  const dashboardStats = useMemo(() => {
+    const now = Date.now()
+    const THIRTY_DAYS = 1000 * 60 * 60 * 24 * 30
+    const totalScopedLeads = dashboardScopedLeads.length
+    const newLeads = dashboardScopedLeads.filter((lead) => {
+      const timeValue = lead?.created_at || lead?.createdAt
+      const createdAt = timeValue ? new Date(timeValue).getTime() : 0
+      return createdAt && now - createdAt <= THIRTY_DAYS
+    }).length
+    const closedLeads = dashboardScopedLeads.filter((lead) => {
+      const statusValue = `${lead?.deal_status || lead?.dealStatus || ""} ${lead?.lead_stage || lead?.leadStage || lead?.stage || ""}`.toLowerCase()
+      return statusValue.includes('closed') || statusValue.includes('won') || statusValue.includes('deal done')
+    }).length
+    const followUps = dashboardScopedLeads.filter((lead) => lead?.follow_up_date || lead?.followUpDate).length
+
+    return [
+      { label: "Total Leads", value: totalScopedLeads, hint: selectedDashboardListName },
+      { label: "New In 30 Days", value: newLeads, hint: "Recent acquisition" },
+      {
+        label: "Closed / Won",
+        value: closedLeads,
+        hint: totalScopedLeads ? `${Math.round((closedLeads / totalScopedLeads) * 100)}% conversion` : "No conversions yet",
+      },
+      { label: "Follow-Ups", value: followUps, hint: "Scheduled touchpoints" },
+    ]
+  }, [dashboardScopedLeads, selectedDashboardListName])
+
   const NavItem = ({ icon: Icon, label, id, onClick }) => (
     <button
       onClick={() => {
         setTab(id)
         onClick?.()
       }}
-      className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border transition-colors ${tab === id ? 'bg-[color:var(--gold)]/15 text-gold border-[#D4AF37]/40' : 'bg-white/5 text-white/75 hover:text-white border-white/10'
+      className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border transition-colors ${
+        tab === id
+          ? 'bg-[color:var(--gold)]/15 text-gold border-[#D4AF37]/40'
+          : isLightDashboard
+            ? 'bg-white/70 text-slate-700 hover:text-slate-900 border-black/10 hover:bg-white'
+            : 'bg-white/5 text-white/75 hover:text-white border-white/10'
         }`}
     >
       <Icon className="h-4 w-4" />
@@ -445,6 +691,8 @@ export default function Admin() {
     const response = await LISTS.DELETE(id)
     if (response?.status === 200) {
       setLists(prev => prev.filter(l => String(l.id) !== String(id)))
+      setSelectedLeadListId(prev => (String(prev) === String(id) ? '' : prev))
+      await loadDashboard()
       return
     }
     throw new Error(response?.data?.message || 'Failed to delete list')
@@ -465,6 +713,8 @@ export default function Admin() {
     if (response?.status === 201 && response?.data?.data) {
       const newLead = response.data.data
       setLeads(prev => [newLead, ...prev])
+      setLeadRefreshKey(prev => prev + 1)
+      await loadDashboard()
       return newLead
     }
     throw new Error(response?.data?.message || 'Failed to create lead')
@@ -480,16 +730,16 @@ export default function Admin() {
   }
 
   return (
-    <div className="fade-in min-h-screen bg-black text-white">
-      <SiteHeader authMode="dashboard" onLogout={onLogout} />
+    <div className={`fade-in min-h-screen ${isLightDashboard ? 'admin-theme-light bg-[#f6f1e7] text-slate-900' : 'bg-black text-white'}`}>
+      <SiteHeader authMode="dashboard" onLogout={onLogout} theme={dashboardTheme} />
       <div className="flex min-h-[calc(100vh-160px)]">
         {/* Sidebar */}
-        <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-[#0B0B0B]">
-          <div className="px-5 pt-9 pb-5 border-b border-white/10">
+        <aside className={`hidden md:flex w-64 flex-col border-r ${isLightDashboard ? 'border-black/10 bg-[#efe7d8] text-slate-900' : 'border-white/10 bg-[#0B0B0B]'}`}>
+          <div className={`px-5 pt-9 pb-5 ${isLightDashboard ? 'border-b border-black/10' : 'border-b border-white/10'}`}>
             <div className="text-[13px] tracking-[0.25em]">
               ADMIN PANEL
             </div>
-            <div className="text-white/60 text-xs mt-1">
+            <div className={`text-xs mt-1 ${isLightDashboard ? 'text-slate-500' : 'text-white/60'}`}>
               Authorized Access
             </div>
           </div>
@@ -507,10 +757,13 @@ export default function Admin() {
                   setSelectedLeadListId('')
                   setTab('manage-leads-all')
                 }}
-                className={`w-full inline-flex items-center justify-between px-3 py-2 rounded-md text-sm border bg-white/5 text-white/75 hover:text-white border-white/10 ${isManageLeadsTab
-                  ? 'bg-[color:var(--gold)]/15 text-gold border-[#D4AF37]/40'
-                  : ''
-                  }`}
+                className={`w-full inline-flex items-center justify-between px-3 py-2 rounded-md text-sm border ${
+                  isManageLeadsTab
+                    ? 'bg-[color:var(--gold)]/15 text-gold border-[#D4AF37]/40'
+                    : isLightDashboard
+                      ? 'bg-white/70 text-slate-700 hover:text-slate-900 border-black/10 hover:bg-white'
+                      : 'bg-white/5 text-white/75 hover:text-white border-white/10'
+                }`}
               >
                 <span className="inline-flex items-center gap-3">
                   <Users2 className="h-4 w-4" />
@@ -545,8 +798,11 @@ export default function Admin() {
 
             <button
               onClick={() => setShowAddLeadModal(true)}
-              className="w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border 
-             bg-white/5 text-white/75 hover:text-white border-white/10"
+              className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border ${
+                isLightDashboard
+                  ? 'bg-white/70 text-slate-700 hover:text-slate-900 border-black/10 hover:bg-white'
+                  : 'bg-white/5 text-white/75 hover:text-white border-white/10'
+              }`}
             >
               <UserPlus className="h-4 w-4" />
               <span>Add Leads</span>
@@ -558,7 +814,11 @@ export default function Admin() {
               <button
                 type="button"
                 onClick={() => setSettingsOpen((prev) => !prev)}
-                className="w-full inline-flex items-center justify-between px-3 py-2 rounded-md text-sm border bg-white/5 text-white/75 hover:text-white border-white/10"
+                className={`w-full inline-flex items-center justify-between px-3 py-2 rounded-md text-sm border ${
+                  isLightDashboard
+                    ? 'bg-white/70 text-slate-700 hover:text-slate-900 border-black/10 hover:bg-white'
+                    : 'bg-white/5 text-white/75 hover:text-white border-white/10'
+                }`}
               >
                 <span className="inline-flex items-center gap-3">
                   <Settings className="h-4 w-4" />
@@ -585,8 +845,8 @@ export default function Admin() {
             label="Properties Media"
             id="manage-properties"
           />
-          <div className="mt-auto p-4 border-t border-white/10">
-            <Button className="w-full border border-white/20 bg-white/10 hover:bg-white/15" onClick={onLogout}>
+          <div className={`mt-auto p-4 ${isLightDashboard ? 'border-t border-black/10' : 'border-t border-white/10'}`}>
+            <Button className={`w-full ${isLightDashboard ? 'border border-black/10 bg-white text-slate-900 hover:bg-slate-50' : 'border border-white/20 bg-white/10 hover:bg-white/15'}`} onClick={onLogout}>
               Logout
             </Button>
           </div>
@@ -595,312 +855,201 @@ export default function Admin() {
         {/* Main */}
         <main className="flex-1 min-w-0">
           {/* Top divider (header content removed) */}
-          <div className="sticky top-0 z-10 border-b border-white/10 bg-black/40 backdrop-blur-xl">
-            <div className="px-4 md:px-6 py-2" />
+          <div className={`sticky top-0 z-10 backdrop-blur-xl ${isLightDashboard ? 'border-b border-black/10 bg-[rgba(246,241,231,0.88)]' : 'border-b border-white/10 bg-black/40'}`}>
+            <div className="px-4 md:px-6 py-3 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDashboardTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                  isLightDashboard
+                    ? 'border-black/10 bg-white text-slate-800 hover:bg-slate-50'
+                    : 'border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {isLightDashboard ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                {isLightDashboard ? 'Dark Theme' : 'Light Theme'}
+              </button>
+            </div>
           </div>
 
           <div className="px-4 md:px-6 py-6 grid gap-6">
             {/* === DASHBOARD TAB === */}
             {tab === 'dashboard' && (
-              <div className="rounded-2xl card-surface border border-white/10 p-6 space-y-6">
-
-                {/* Welcome + Selected List */}
-                <div className="pb-3 border-b border-white/10">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className={`rounded-2xl border p-6 space-y-6 transition-colors ${
+                isLightDashboard
+                  ? 'border-black/10 bg-[linear-gradient(180deg,#ffffff_0%,#f8f5ef_100%)] text-slate-900 shadow-[0_30px_90px_-40px_rgba(15,23,42,0.3)]'
+                  : 'card-surface border-white/10 text-white'
+              }`}>
+                <div className={`pb-4 ${isLightDashboard ? 'border-b border-black/10' : 'border-b border-white/10'}`}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                      <div className="text-white/70">
-                        Welcome, <span className="text-gold font-semibold">Admin</span>!
+                      <div className={isLightDashboard ? 'text-slate-700' : 'text-white/70'}>
+                        Welcome, <span className="text-gold font-semibold">{user?.username || user?.name || 'Admin'}</span>
                       </div>
-                      <div className="text-xs text-white/60">Get a quick overview of your leads and customer data</div>
+                      <div className={`mt-1 text-xs ${isLightDashboard ? 'text-slate-500' : 'text-white/60'}`}>
+                        Dynamic lead analytics for {selectedDashboardListName}
+                      </div>
                     </div>
 
-                    <div
-                      className="inline-flex items-center gap-3 px-4 py-2 rounded-md border border-white/15 bg-white/5 text-white/90 hover:bg-white/10 text-sm sm:text-base cursor-pointer"
-                      onClick={() => setShowListSelectModal(true)}
-                    >
-                      {/* Selected List Label */}
-                      <span className="text-white/70">Selected List</span>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      {showDashboardRefreshing ? (
+                        <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-[#D4AF37] ${
+                          isLightDashboard ? 'border-[#D4AF37]/30 bg-[#FFF7E0]' : 'border-[#D4AF37]/20 bg-[#D4AF37]/10'
+                        }`}>
+                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          Refreshing dashboard
+                        </div>
+                      ) : null}
 
-                      {/* Purchase Text + Icon */}
-                      <span className="inline-flex items-center gap-2">
-                        PURCHASE <ChevronDown className="h-5 w-5" />
-                      </span>
+                      {showDashboardSkeleton ? (
+                        <Skeleton className="h-11 w-full rounded-xl sm:w-64" />
+                      ) : (
+                        <label className={`flex flex-col gap-1 text-sm ${isLightDashboard ? 'text-slate-600' : 'text-white/65'}`}>
+                          <span>Selected List</span>
+                          <select
+                            value={selectedLeadListId}
+                            onChange={(event) => setSelectedLeadListId(event.target.value)}
+                            className={`min-w-[240px] rounded-xl border px-4 py-3 outline-none transition focus:border-[#D4AF37]/50 ${
+                              isLightDashboard
+                                ? 'border-black/10 bg-white text-slate-900'
+                                : 'border-white/10 bg-black/50 text-white'
+                            }`}
+                          >
+                            <option value="">All Lists</option>
+                            {lists.map((list) => (
+                              <option key={list.id} value={String(list.id)}>
+                                {list.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
                     </div>
-
                   </div>
                 </div>
 
-                {/* Tabs row (UI + active state) */}
-                <div className="flex flex-wrap gap-3 mb-4">
-                  {[
-                    {
-                      label: "Lead Stage", icon: (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18l-6 8v6l-6 3v-9L3 4z" />
-                        </svg>
-                      )
-                    },
-                    {
-                      label: "Deal Size", icon: (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H7" strokeWidth={1.6} strokeLinecap="round" />
-                        </svg>
-                      )
-                    },
-                    {
-                      label: "Product Groups", icon: (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
-                          <circle cx="4" cy="7" r="1.2" fill="currentColor" />
-                          <path d="M8.5 7h12.5" strokeLinecap="round" />
-                          <circle cx="4" cy="12" r="1.2" fill="currentColor" />
-                          <path d="M8.5 12h12.5" strokeLinecap="round" />
-                          <circle cx="4" cy="17" r="1.2" fill="currentColor" />
-                          <path d="M8.5 17h12.5" strokeLinecap="round" />
-                        </svg>
-                      )
-                    },
-                    {
-                      label: "Customer Groups", icon: (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                          <rect x="10.5" y="3.5" width="3" height="3" rx="0.8" />
-                          <path d="M12 7v4" strokeLinecap="round" />
-                          <path d="M6 11h12" strokeLinecap="round" />
-                          <path d="M6 11v3" strokeLinecap="round" />
-                          <path d="M12 11v3" strokeLinecap="round" />
-                          <path d="M18 11v3" strokeLinecap="round" />
-                          <rect x="4.5" y="14.5" width="3" height="3" rx="0.8" />
-                          <rect x="10.5" y="14.5" width="3" height="3" rx="0.8" />
-                          <rect x="16.5" y="14.5" width="3" height="3" rx="0.8" />
-                        </svg>
-                      )
-                    },
-                    {
-                      label: "Tags", icon: (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <g transform="translate(-2, 2)">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 12l-8 8-8-8V4h8l8 8z" />
-                            <circle cx="9" cy="9" r="1.5" />
-                          </g>
-                        </svg>
-                      )
-                    },
-                    {
-                      label: "Potential", icon: (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path d="M12 17l-5 3 2-6-5-4h6L12 4l2 6h6l-5 4 2 6z" strokeWidth={1.6} />
-                        </svg>
-                      )
-                    },
-                  ].map((tabItem) => (
-                    <button
-                      key={tabItem.label}
-                      onClick={() => setActiveDashboardTab(tabItem.label)}
-                      className={`flex items-center gap-2 px-5 py-3 rounded-lg border border-white/10 text-sm ${activeDashboardTab === tabItem.label ? "bg-white/10 text-gold font-semibold" : "text-white/70 hover:bg-white/5"
-                        }`}
-                    >
-                      {tabItem.icon}
-                      {tabItem.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Tab content */}
-                <div className="p-6 rounded-lg text-white/70">
-                  {activeDashboardTab === "Lead Stage" && (
-                    <div className="flex gap-6">
-                      <GenericTable
-                        columns={[
-                          { label: "Lead Stage", accessor: "stage" },
-                          { label: "Leads", accessor: "count" },
-                        ]}
-                        rows={rows}
-                        totalLabel="Total"
-                        totalValue={totalLeads}
-                        width="380px"
-                        height="300px"
-                      />
-
-                      <GenericGraph
-                        labels={labels}
-                        datasets={[
-                          {
-                            label: "Lead Stage",
-                            data: dataValues
-                          }
-                        ]}
-                      />
+                {showDashboardSkeleton ? (
+                  <div className="space-y-6">
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <StatCardSkeleton key={index} />
+                      ))}
                     </div>
-                  )}
-
-                  {activeDashboardTab === "Deal Size" && (
-                    <div className="flex gap-6">
-                      <GenericTable
-                        columns={[
-                          { label: "Lead Stage", accessor: "stage" },
-                          { label: "Leads", accessor: "count" },
-                          { label: "Value (INR)", accessor: "value" }
-                        ]}
-                        rows={rows}
-                        totalLabel="Total"
-                        totalValue={totalLeads}
-                        totalValue2={totalValueINRFormatted}
-                        width="380px"
-                        height="300px"
-                      />
-
-                      <GenericGraph
-                        labels={labels}
-                        datasets={[
-                          {
-                            label: "Deal Size (INR)",
-                            data: dataValues
-                          }
-                        ]}
-                      />
+                    <div className="flex flex-wrap gap-3">
+                      {DASHBOARD_METRICS.map((metric) => (
+                        <Skeleton key={metric} className="h-11 w-40 rounded-xl" />
+                      ))}
                     </div>
-                  )}
-
-                  {activeDashboardTab === "Product Groups" && (
-                    <div className="flex gap-6">
-                      <GenericTable
-                        columns={[
-                          { label: "Product Groups", accessor: "stage" },
-                          { label: "Leads", accessor: "count" },
-                        ]}
-                        rows={rows}
-                        totalLabel="Total"
-                        totalValue={totalLeads}
-                        width="380px"
-                        height="300px"
-                      />
-
-                      <GenericGraph
-                        labels={labels}
-                        datasets={[
-                          {
-                            label: "Product Groups",
-                            data: dataValues
-                          }
-                        ]}
-                      />
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+                      <TableSkeleton rows={8} columns={2} showPagination={false} />
+                      <DashboardChartSkeleton />
                     </div>
-                  )}
-
-                  {activeDashboardTab === "Customer Groups" && (
-                    <div className="flex gap-6">
-                      <GenericTable
-                        columns={[
-                          { label: "Customer Groups", accessor: "stage" },
-                          { label: "Leads", accessor: "count" },
-                        ]}
-                        rows={rows}
-                        totalLabel="Total"
-                        totalValue={totalLeads}
-                        width="380px"
-                        height="300px"
-                      />
-
-                      <GenericGraph
-                        labels={labels}
-                        datasets={[
-                          {
-                            label: "Customer Groups",
-                            data: dataValues
-                          }
-                        ]}
-                      />
+                  </div>
+                ) : dashboardError && !lists.length && !leads.length ? (
+                  <ErrorState
+                    title="Unable to load dashboard"
+                    description={dashboardError}
+                    onRetry={loadDashboard}
+                  />
+                ) : (
+                  <>
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                      {dashboardStats.map((stat) => (
+                        <div key={stat.label} className={`rounded-2xl border p-5 ${
+                          isLightDashboard
+                            ? 'border-black/10 bg-white/90 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.28)]'
+                            : 'border-white/10 bg-black/30'
+                        }`}>
+                          <div className={`text-xs uppercase tracking-[0.22em] ${isLightDashboard ? 'text-slate-500' : 'text-white/45'}`}>{stat.label}</div>
+                          <div className={`mt-3 text-3xl font-semibold ${isLightDashboard ? 'text-slate-900' : 'text-white'}`}>{stat.value}</div>
+                          <div className={`mt-2 text-xs ${isLightDashboard ? 'text-slate-500' : 'text-white/55'}`}>{stat.hint}</div>
+                        </div>
+                      ))}
                     </div>
-                  )}
 
-                  {activeDashboardTab === "Tags" && (
-                    <div className="flex gap-6">
-                      <GenericTable
-                        columns={[
-                          { label: "Tags", accessor: "stage" },
-                          { label: "Leads", accessor: "count" },
-                        ]}
-                        rows={rows}
-                        totalLabel="Total"
-                        totalValue={totalLeads}
-                        width="380px"
-                        height="300px"
-                      />
-
-                      <GenericGraph
-                        labels={labels}
-                        datasets={[
-                          {
-                            label: "Tags",
-                            data: dataValues
-                          }
-                        ]}
-                      />
+                    <div className="flex flex-wrap gap-3">
+                      {DASHBOARD_METRICS.map((metric) => (
+                        <button
+                          key={metric}
+                          onClick={() => setActiveDashboardTab(metric)}
+                          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                            activeDashboardTab === metric
+                              ? 'border-[#D4AF37]/40 bg-[#D4AF37]/12 text-gold'
+                              : isLightDashboard
+                                ? 'border-black/10 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                                : 'border-white/10 bg-white/[0.03] text-white/75 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          {DASHBOARD_METRIC_ICONS[metric]}
+                          {metric}
+                        </button>
+                      ))}
                     </div>
-                  )}
 
-                  {activeDashboardTab === "Potential" && (
-                    <div className="flex gap-6">
-                      <GenericTable
-                        columns={[
-                          { label: "Potential", accessor: "stage" },
-                          { label: "Leads", accessor: "count" },
-                        ]}
-                        rows={rows}
-                        totalLabel="Total"
-                        totalValue={totalLeads}
-                        width="380px"
-                        height="300px"
+                    {dashboardRows.length === 0 ? (
+                      <EmptyState
+                        title="No data available for this category."
+                        description="Try a different metric or select a list that contains matching lead data."
                       />
+                    ) : (
+                      <div className="grid gap-6 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+                        <DashboardMetricTable
+                          title={dashboardAnalytics.title}
+                          rows={dashboardRows}
+                          total={dashboardTotal}
+                          theme={dashboardTheme}
+                        />
+                        <DashboardMetricChart
+                          title={dashboardAnalytics.title}
+                          rows={dashboardRows}
+                          total={dashboardTotal}
+                          theme={dashboardTheme}
+                        />
+                      </div>
+                    )}
 
-                      <GenericGraph
-                        labels={labels}
-                        datasets={[
-                          {
-                            label: "Potential",
-                            data: dataValues
-                          }
-                        ]}
+                    {dashboardError ? (
+                      <ErrorState
+                        title="Dashboard refresh failed"
+                        description={dashboardError}
+                        onRetry={loadDashboard}
                       />
-                    </div>
-                  )}
-                </div>
-
-                {/* Error / loading */}
-                {loadingDashboard && (
-                  <div className="text-white/60 text-sm mt-4">Loading dashboard data...</div>
+                    ) : null}
+                  </>
                 )}
-                {dashboardError && <div className="text-red-400 text-sm mt-4">{dashboardError}</div>}
               </div>
             )}
 
             {/* === MANAGE LIST TAB === */}
             {tab === 'manage-list' && (
-              <ManageList
-                lists={lists}
-                onAddLeadClick={() => setShowAddLeadModal(true)}
-                onViewLeads={(list) => {
-                  setSelectedLeadListId(String(list?.id || ''))
-                  setManageLeadsOpen(true)
-                  setTab('manage-leads-all')
-                }}
-                onDelete={async (id) => {
-                  setGlobalLoading(true)
-                  try {
-                    await deleteList(id)
-                  } finally {
-                    setGlobalLoading(false)
-                  }
-                }}
-                onUpdate={async (id, data) => {
-                  setGlobalLoading(true)
-                  try {
-                    const updated = await updateListApi(id, data)
-                    return updated
-                  } finally {
-                    setGlobalLoading(false)
-                  }
-                }}
-              />
+              <div className="admin-panel-page">
+                <ManageList
+                  lists={lists}
+                  onAddLeadClick={() => setShowAddLeadModal(true)}
+                  onViewLeads={(list) => {
+                    setSelectedLeadListId(String(list?.id || ''))
+                    setManageLeadsOpen(true)
+                    setTab('manage-leads-all')
+                  }}
+                  onDelete={async (id) => {
+                    setGlobalLoading(true)
+                    try {
+                      await deleteList(id)
+                    } finally {
+                      setGlobalLoading(false)
+                    }
+                  }}
+                  onUpdate={async (id, data) => {
+                    setGlobalLoading(true)
+                    try {
+                      const updated = await updateListApi(id, data)
+                      return updated
+                    } finally {
+                      setGlobalLoading(false)
+                    }
+                  }}
+                />
+              </div>
             )}
 
             {/* === MANAGE LEADS TAB === */}
@@ -909,21 +1058,29 @@ export default function Admin() {
               tab === 'manage-leads-all' ||
               tab === 'manage-leads-unattended'
             ) && (
-                <ManageLeads
-                  lists={lists}
-                  initialViewMode={
-                    tab === 'manage-leads-unattended' ? 'unattended' : 'all'
-                  }
-                  initialListId={tab === 'manage-leads-all' ? selectedLeadListId : ''}
-                />
+                <div className="admin-panel-page">
+                  <ManageLeads
+                    lists={lists}
+                    initialViewMode={
+                      tab === 'manage-leads-unattended' ? 'unattended' : 'all'
+                    }
+                    initialListId={tab === 'manage-leads-all' ? selectedLeadListId : ''}
+                    refreshKey={leadRefreshKey}
+                    theme={dashboardTheme}
+                    onLeadDeleted={async () => {
+                      setLeadRefreshKey(prev => prev + 1)
+                      await loadDashboard()
+                    }}
+                  />
+                </div>
               )}
 
             {/* === MANAGE USERS TAB === */}
-            {tab === 'manage-users' && <ManageUsers />}
+            {tab === 'manage-users' && <div className="admin-panel-page"><ManageUsers /></div>}
 
             {/* Add Lead Modal */}
             {showAddLeadModal && (
-              <div className="fixed inset-0 z-50">
+              <div className={`fixed inset-0 z-50 ${isLightDashboard ? 'admin-modal' : ''}`}>
 
                 {/* Overlay */}
                 <div className="absolute inset-0 bg-black/70 z-10"></div>
@@ -1120,19 +1277,19 @@ export default function Admin() {
             )}
 
             {/* === SETTINGS: USER PROFILE TAB === */}
-            {tab === 'settings-user' && <UserProfileSettings />}
+            {tab === 'settings-user' && <div className="admin-panel-page"><UserProfileSettings /></div>}
 
             {/* === NEW: PROPERTIES MEDIA TAB === */}
-            {tab === 'manage-properties' && <ManagePropertiesMedia />}
+            {tab === 'manage-properties' && <div className="admin-panel-page"><ManagePropertiesMedia /></div>}
 
             {/* === SETTINGS: COMPANY PROFILE TAB === */}
-            {tab === 'settings-company' && <CompanyProfileSettings />}
+            {tab === 'settings-company' && <div className="admin-panel-page"><CompanyProfileSettings /></div>}
 
             {/* === SETTINGS: MANAGE QUALIFIERS TAB === */}
-            {tab === 'settings-qualifiers' && <ManageQualifiers />}
+            {tab === 'settings-qualifiers' && <div className="admin-panel-page"><ManageQualifiers /></div>}
 
             {/* === SETTINGS: LEAD STAGE CUSTOMIZATION TAB === */}
-            {tab === 'settings-lead-stage' && <LeadStageCustomization />}
+            {tab === 'settings-lead-stage' && <div className="admin-panel-page"><LeadStageCustomization /></div>}
           </div>
         </main>
       </div>

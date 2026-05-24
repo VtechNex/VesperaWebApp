@@ -1,8 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Input } from '../../../components/ui/input'
-import { Dialog, DialogTitle, DialogDescription, DialogContent, DialogHeader } from '../../../components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../../../components/ui/dialog'
 import { Button } from '../../../components/ui/button'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import ADMIN from '../../../services/adminService'
+import { useToast } from '../../../hooks/use-toast'
 
 function DarkSelect({ className = '', children, ...props }) {
   return (
@@ -23,6 +25,7 @@ function DarkSelect({ className = '', children, ...props }) {
 }
 
 export default function ManageUsers() {
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [users, setUsers] = useState([])
@@ -30,6 +33,8 @@ export default function ManageUsers() {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [newUser, setNewUser] = useState({
     firstName: '',
     lastName: '',
@@ -46,39 +51,37 @@ export default function ManageUsers() {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const response = await ADMIN.FETCH_USERS();
+      const response = await ADMIN.FETCH_USERS()
       if (response && response.status === 200) {
-        setUsers(response.data.data);
+        setUsers(response.data.data || [])
       }
     }
     fetchUsers()
-  }, []);
+  }, [])
 
   const stats = useMemo(() => {
     const total = users.length
-    const admins = users.filter((u) => u.role === 'admin').length
-    const owners = users.filter((u) => u.role === 'owner').length
-    const managers = users.filter((u) => u.role === 'manager').length
-    const l1 = users.filter((u) => u.role === 'l1').length
-    const l2 = users.filter((u) => u.role === 'l2').length
+    const admins = users.filter((user) => user.role === 'admin').length
+    const owners = users.filter((user) => user.role === 'owner').length
+    const managers = users.filter((user) => user.role === 'manager').length
+    const l1 = users.filter((user) => user.role === 'l1').length
+    const l2 = users.filter((user) => user.role === 'l2').length
     return { total, admins, owners, managers, l1, l2 }
   }, [users])
 
   const filteredUsers = useMemo(() => {
     let data = [...users]
-    if (roleFilter !== 'all') data = data.filter((u) => u.role === roleFilter)
+    if (roleFilter !== 'all') data = data.filter((user) => user.role === roleFilter)
     if (search.trim()) {
-      const q = search.toLowerCase()
-      data = data.filter((u) => {
-        const username = (u.username || '').toLowerCase()
-        const email = (u.email || '').toLowerCase()
-        return (
-          username.includes(q) || email.includes(q)
-        )
+      const query = search.toLowerCase()
+      data = data.filter((user) => {
+        const username = String(user.username || '').toLowerCase()
+        const email = String(user.email || '').toLowerCase()
+        return username.includes(query) || email.includes(query)
       })
     }
     return data
-  }, [users, search, roleFilter])
+  }, [roleFilter, search, users])
 
   const roleLabel = (role, fallback) => {
     if (role === 'admin') return 'Admin'
@@ -89,14 +92,7 @@ export default function ManageUsers() {
     return fallback || 'User'
   }
 
-  const badgeClass = (variant) => {
-    if (variant === 'owner')
-      return 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/60'
-    if (variant === 'you') return 'bg-sky-500/15 text-sky-200 border border-sky-400/60'
-    return 'bg-white/10 text-white/70 border border-white/20'
-  }
-
-  const handleOpenDialog = () => {
+  const resetNewUser = () => {
     setNewUser({
       firstName: '',
       lastName: '',
@@ -105,61 +101,77 @@ export default function ManageUsers() {
       password: '',
       role: 'manager',
     })
+  }
+
+  const handleOpenDialog = () => {
+    resetNewUser()
     setIsDialogOpen(true)
   }
 
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false)
-  }
-
   const handleCreateUser = async () => {
-    console.log('Creating user:', newUser)
-    const response = await ADMIN.CREATE_USER(newUser);
+    const response = await ADMIN.CREATE_USER(newUser)
     if (response && response.status === 201) {
-      setUsers((prev) => [...prev, response.data.data]);
+      setUsers((prev) => [...prev, response.data.data])
+      toast({
+        title: 'User created',
+        description: `${newUser.username} was added successfully.`,
+      })
+    } else {
+      toast({
+        title: 'Create failed',
+        description: response?.data?.message || 'Unable to create user.',
+      })
     }
     setIsDialogOpen(false)
   }
 
-  const handleActionClick = (e, user) => {
-    e.stopPropagation()
+  const handleActionClick = (event, user) => {
+    event.stopPropagation()
     setSelectedUser(user)
     setContextMenu({
-      x: e.clientX,
-      y: e.clientY,
+      x: event.clientX,
+      y: event.clientY,
     })
   }
 
   const handleDeleteUser = async () => {
-    if (!selectedUser) return
-    
-    const confirmed = window.confirm(
-      `Are you sure you want to delete user "${selectedUser.username}"? This action cannot be undone.`
-    )
-    
-    if (!confirmed) {
-      setContextMenu(null)
-      return
-    }
+    if (!selectedUser || deleteLoading) return
 
     try {
+      setDeleteLoading(true)
       const response = await ADMIN.DELETE_USER(selectedUser.id)
       if (response && response.status === 200) {
-        setUsers((prev) => prev.filter(u => String(u.id) !== String(selectedUser.id)))
-        alert('User deleted successfully')
+        setUsers((prev) => prev.filter((user) => String(user.id) !== String(selectedUser.id)))
+        toast({
+          title: 'User deleted',
+          description: `${selectedUser.username} was removed successfully.`,
+        })
+        setDeleteDialogOpen(false)
+        setSelectedUser(null)
+        return
       }
-    } catch (err) {
-      alert('Failed to delete user: ' + (err?.message || 'Unknown error'))
+
+      toast({
+        title: 'Delete failed',
+        description: response?.data?.message || 'Unable to delete user.',
+      })
+    } catch (error) {
+      toast({
+        title: 'Delete failed',
+        description: error?.response?.data?.message || error?.message || 'Unknown error',
+      })
+    } finally {
+      setDeleteLoading(false)
+      setContextMenu(null)
     }
-    setContextMenu(null)
   }
 
   const handleUpdateClick = () => {
     if (!selectedUser) return
     setUpdateUser({
-      username: selectedUser.username,
-      email: selectedUser.email,
-      role: selectedUser.role,
+      username: selectedUser.username || '',
+      email: selectedUser.email || '',
+      role: selectedUser.role || 'manager',
     })
     setIsUpdateDialogOpen(true)
     setContextMenu(null)
@@ -167,18 +179,30 @@ export default function ManageUsers() {
 
   const handleUpdateUser = async () => {
     if (!selectedUser) return
-    
+
     try {
       const response = await ADMIN.UPDATE_USER(selectedUser.id, updateUser)
       if (response && response.status === 200) {
         setUsers((prev) =>
-          prev.map(u => String(u.id) === String(selectedUser.id) ? response.data.data : u)
+          prev.map((user) => (String(user.id) === String(selectedUser.id) ? response.data.data : user))
         )
-        alert('User updated successfully')
+        toast({
+          title: 'User updated',
+          description: `${selectedUser.username} was updated successfully.`,
+        })
+      } else {
+        toast({
+          title: 'Update failed',
+          description: response?.data?.message || 'Unable to update user.',
+        })
       }
-    } catch (err) {
-      alert('Failed to update user: ' + (err?.message || 'Unknown error'))
+    } catch (error) {
+      toast({
+        title: 'Update failed',
+        description: error?.response?.data?.message || error?.message || 'Unknown error',
+      })
     }
+
     setIsUpdateDialogOpen(false)
     setSelectedUser(null)
   }
@@ -206,11 +230,11 @@ export default function ManageUsers() {
 
       <div className="rounded-2xl card-surface border border-white/10 p-4 md:p-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex-1 flex items-center gap-2 min-w-[220px]">
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search user by username or email" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search user by username or email" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
         </div>
         <div className="flex items-center gap-2 text-[11px] md:text-xs">
           <span className="text-white/60">Filter by role:</span>
-          <DarkSelect value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="min-w-[160px]">
+          <DarkSelect value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} className="min-w-[160px]">
             <option value="all">-- All Roles --</option>
             <option value="admin">Admin</option>
             <option value="owner">Account Owner</option>
@@ -242,25 +266,25 @@ export default function ManageUsers() {
               {filteredUsers.length === 0 ? (
                 <tr><td colSpan="6" className="px-4 py-8 text-center text-white/60 bg-black/40">No users found.</td></tr>
               ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="border-t border-white/10 text-white/80 bg-black/40 hover:bg-black/70 transition-colors">
+                filteredUsers.map((user) => (
+                  <tr key={user.id} className="border-t border-white/10 text-white/80 bg-black/40 hover:bg-black/70 transition-colors">
                     <td className="px-3 py-2">
                       <button
-                        onClick={(e) => handleActionClick(e, u)}
+                        onClick={(event) => handleActionClick(event, user)}
                         className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-white/5 border border-white/15 text-white/70 text-xs hover:bg-white/10 transition cursor-pointer"
                       >
-                        ⋮
+                        ...
                       </button>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top">{u.username}</td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top">{u.email}</td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top">{roleLabel(u.role)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap align-top">{user.username}</td>
+                    <td className="px-3 py-2 whitespace-nowrap align-top">{user.email}</td>
+                    <td className="px-3 py-2 whitespace-nowrap align-top">{roleLabel(user.role)}</td>
                     <td className="px-3 py-2 whitespace-nowrap align-top">
-                      <span className={`px-2 py-1 rounded-full text-[9px] ${u.is_active ? 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>
-                        {u.is_active ? 'Active' : 'Inactive'}
+                      <span className={`px-2 py-1 rounded-full text-[9px] ${user.is_active ? 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>
+                        {user.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top text-[10px]">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="px-3 py-2 whitespace-nowrap align-top text-[10px]">{new Date(user.created_at).toLocaleDateString()}</td>
                   </tr>
                 ))
               )}
@@ -269,28 +293,28 @@ export default function ManageUsers() {
         </div>
       </div>
 
-      <Dialog open={isDialogOpen} onClose={handleCloseDialog}>
-        <DialogContent>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="w-full max-w-xl rounded-2xl border border-white/10 bg-black/90 p-6 text-white">
           <DialogTitle className="text-lg font-semibold text-white">Add New User</DialogTitle>
-          <DialogDescription className="text-sm text-white/70 mb-4">
+          <DialogDescription className="mb-4 text-sm text-white/70">
             Fill in the details below to create a new user account.
           </DialogDescription>
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Username</label>
-              <Input value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} placeholder="Enter username" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              <Input value={newUser.username} onChange={(event) => setNewUser({ ...newUser, username: event.target.value })} placeholder="Enter username" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Email</label>
-              <Input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="Enter email address" type="email" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              <Input value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} placeholder="Enter email address" type="email" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Password</label>
-              <Input value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="Enter password" type="password" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              <Input value={newUser.password} onChange={(event) => setNewUser({ ...newUser, password: event.target.value })} placeholder="Enter password" type="password" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Role</label>
-              <DarkSelect value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} className="w-full">
+              <DarkSelect value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })} className="w-full">
                 <option value="admin">Admin</option>
                 <option value="owner">Account Owner</option>
                 <option value="manager">Manager</option>
@@ -300,31 +324,30 @@ export default function ManageUsers() {
             </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">
-            <Button onClick={handleCloseDialog} variant="outline" className="text-xs md:text-sm">Cancel</Button>
+            <Button onClick={() => setIsDialogOpen(false)} variant="outline" className="text-xs md:text-sm">Cancel</Button>
             <Button onClick={handleCreateUser} className="text-xs md:text-sm">Create User</Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Update User Dialog */}
-      <Dialog open={isUpdateDialogOpen} onClose={() => setIsUpdateDialogOpen(false)}>
-        <DialogContent>
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="w-full max-w-xl rounded-2xl border border-white/10 bg-black/90 p-6 text-white">
           <DialogTitle className="text-lg font-semibold text-white">Update User</DialogTitle>
-          <DialogDescription className="text-sm text-white/70 mb-4">
+          <DialogDescription className="mb-4 text-sm text-white/70">
             Update user information for {selectedUser?.username}
           </DialogDescription>
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Username</label>
-              <Input value={updateUser.username} onChange={(e) => setUpdateUser({ ...updateUser, username: e.target.value })} placeholder="Enter username" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              <Input value={updateUser.username} onChange={(event) => setUpdateUser({ ...updateUser, username: event.target.value })} placeholder="Enter username" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Email</label>
-              <Input value={updateUser.email} onChange={(e) => setUpdateUser({ ...updateUser, email: e.target.value })} placeholder="Enter email address" type="email" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              <Input value={updateUser.email} onChange={(event) => setUpdateUser({ ...updateUser, email: event.target.value })} placeholder="Enter email address" type="email" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
             </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Role</label>
-              <DarkSelect value={updateUser.role} onChange={(e) => setUpdateUser({ ...updateUser, role: e.target.value })} className="w-full">
+              <DarkSelect value={updateUser.role} onChange={(event) => setUpdateUser({ ...updateUser, role: event.target.value })} className="w-full">
                 <option value="admin">Admin</option>
                 <option value="owner">Account Owner</option>
                 <option value="manager">Manager</option>
@@ -340,17 +363,11 @@ export default function ManageUsers() {
         </DialogContent>
       </Dialog>
 
-      {/* Context Menu */}
       {contextMenu && (
         <>
-          {/* Overlay to close menu */}
+          <div className="fixed inset-0 z-40" onClick={handleCloseContextMenu} />
           <div
-            className="fixed inset-0 z-40"
-            onClick={handleCloseContextMenu}
-          />
-          {/* Context Menu */}
-          <div
-            className="fixed z-50 bg-black border border-white/20 rounded-lg shadow-xl overflow-hidden"
+            className="fixed z-50 overflow-hidden rounded-lg border border-white/20 bg-black shadow-xl"
             style={{
               top: `${contextMenu.y}px`,
               left: `${contextMenu.x}px`,
@@ -358,19 +375,49 @@ export default function ManageUsers() {
           >
             <button
               onClick={handleUpdateClick}
-              className="w-full px-4 py-2 text-sm text-white hover:bg-white/10 transition text-left flex items-center gap-2 whitespace-nowrap"
+              className="w-full px-4 py-2 text-left text-sm text-white transition hover:bg-white/10 whitespace-nowrap"
             >
-              <span>✏️</span> Update User
+              Update User
             </button>
             <button
-              onClick={handleDeleteUser}
-              className="w-full px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 transition text-left flex items-center gap-2 whitespace-nowrap border-t border-white/10"
+              onClick={() => {
+                setDeleteDialogOpen(true)
+                setContextMenu(null)
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/20 whitespace-nowrap border-t border-white/10"
             >
-              <span>🗑️</span> Delete User
+              Delete User
             </button>
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (deleteLoading) return
+          setDeleteDialogOpen(open)
+          if (!open) {
+            setSelectedUser(null)
+          }
+        }}
+        title="Delete User?"
+        description="This action cannot be undone. Are you sure you want to delete this user?"
+        details={
+          selectedUser ? (
+            <div className="space-y-1">
+              <div className="font-medium text-white">{selectedUser.username || 'Unknown user'}</div>
+              <div className="text-white/60">{selectedUser.email || '-'}</div>
+              <div className="text-xs text-white/50">{roleLabel(selectedUser.role)}</div>
+            </div>
+          ) : null
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        onConfirm={handleDeleteUser}
+        loading={deleteLoading}
+        destructive
+      />
     </div>
   )
 }

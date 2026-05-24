@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { Button } from '../../../components/ui/button'
 import { Input } from '../../../components/ui/input'
 import { Label } from '../../../components/ui/label'
+import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import {
   Dialog,
   DialogContent,
@@ -9,9 +10,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../../../components/ui/dialog'
-import { Users } from 'lucide-react'
+import { Trash2, Users } from 'lucide-react'
 import LISTS from '../../../services/listService'
 import ADMIN from '../../../services/adminService'
+import { useToast } from '../../../hooks/use-toast'
 
 function ManageList({
   lists: initialLists = [],
@@ -21,6 +23,7 @@ function ManageList({
   onAddLeadClick,
   onViewLeads
 }) {
+  const { toast } = useToast()
   const [lists, setLists] = useState([])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -32,6 +35,12 @@ function ManageList({
   const [showCreate, setShowCreate] = useState(false)
   const [users, setUsers] = useState([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [deleteState, setDeleteState] = useState({
+    open: false,
+    list: null,
+    loading: false,
+    error: '',
+  })
   const [editDialog, setEditDialog] = useState({
     open: false,
     listId: null,
@@ -173,6 +182,39 @@ function ManageList({
     }
   }
 
+  const openDeleteDialog = (list) => {
+    setDeleteState({
+      open: true,
+      list,
+      loading: false,
+      error: '',
+    })
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteState.list?.id || deleteState.loading) return
+
+    setDeleteState((prev) => ({ ...prev, loading: true, error: '' }))
+    setError('')
+
+    try {
+      await handleDelete(deleteState.list.id)
+      setDeleteState({ open: false, list: null, loading: false })
+      toast({
+        title: 'List deleted',
+        description: 'The list was removed successfully.',
+      })
+    } catch (e) {
+      const message = String(e?.message || e || 'Unable to delete this list')
+      setError(message)
+      setDeleteState((prev) => ({ ...prev, loading: false, error: message }))
+      toast({
+        title: 'Delete failed',
+        description: message,
+      })
+    }
+  }
+
   const openEdit = (list) => {
     setEditDialog((prev) => ({
       ...prev,
@@ -283,14 +325,21 @@ function ManageList({
               key={l.id || index}
               className="rounded-2xl border border-white/10 bg-black/40 p-5 shadow-md hover:shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 ease-out transform hover:-translate-y-2 flex flex-col items-center text-center"
             >
-              {/* Edit Button */}
-              <div className="self-end mb-1">
+              <div className="mb-2 flex w-full items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => openEdit(l)}
-                  className="text-[#D4AF37]/90 hover:text-[#D4AF37] text-sm flex items-center gap-1"
+                  className="text-sm text-[#D4AF37]/90 hover:text-[#D4AF37]"
                 >
                   <span className="underline">Edit</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDeleteDialog(l)}
+                  className="inline-flex items-center gap-1 text-sm text-red-300/90 transition-colors hover:text-red-200"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete</span>
                 </button>
               </div>
 
@@ -782,6 +831,48 @@ function ManageList({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteState.open}
+        onOpenChange={(open) => {
+          if (deleteState.loading) return
+          setDeleteState((prev) => ({
+            ...prev,
+            open,
+            list: open ? prev.list : null,
+            error: open ? prev.error : '',
+          }))
+        }}
+        title="Delete List?"
+        description="This list will be permanently deleted. Choose what should happen to the leads inside this list."
+        details={
+          <div className="space-y-2">
+            <div className="font-medium text-white">{deleteState.list?.name || 'Untitled list'}</div>
+            {Number(deleteState.list?.total_leads || 0) > 0 ? (
+              <div className="text-sm text-white/70">
+                {`This list contains ${deleteState.list?.total_leads || 0} lead${
+                  Number(deleteState.list?.total_leads || 0) === 1 ? '' : 's'
+                }. Please move or remove those leads before deleting this list.`}
+              </div>
+            ) : (
+              <div className="text-sm text-white/70">
+                This list is empty and can be deleted safely.
+              </div>
+            )}
+            {deleteState.error ? (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {deleteState.error}
+              </div>
+            ) : null}
+          </div>
+        }
+        cancelLabel="Cancel"
+        confirmLabel="Delete"
+        onConfirm={handleDeleteConfirm}
+        loading={deleteState.loading}
+        confirmDisabled={Number(deleteState.list?.total_leads || 0) > 0}
+        destructive
+      />
     </div>
   )
 }

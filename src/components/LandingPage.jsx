@@ -17,12 +17,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { useToast } from "../hooks/use-toast.js";
-import { useNavigate } from "react-router-dom";
 import {
   Home,
   Building,
@@ -42,21 +38,17 @@ import {
   Award,
   LayoutGrid,
   List,
-  BedDouble,
-  Bath,
   Ruler,
   Phone,
   Mail,
-  Send,
-  Eye,
-  EyeOff,
-  Loader2,
+  Instagram,
 } from "lucide-react";
 import CountUp from "./CountUp";
 import { smoothScrollTo, interceptAnchorClicks } from "../utils/smoothScroll.js";
 import SiteHeader from "./layout/SiteHeader.jsx";
 import SiteFooter from "./layout/SiteFooter.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
+import { summarizePropertyDetails } from "../utils/propertyDetails.js";
 
 const ICONS = { Home, Building, KeyRound, Handshake, MapPin, ShieldCheck, UserRound, BadgeCheck };
 
@@ -69,10 +61,18 @@ const FALLBACK_IMG = {
   property: "https://images.unsplash.com/photo-1600585154154-7ef9d53f6cfb?auto=format&fit=crop&w=1200&q=60",
 };
 
+const WHATSAPP_PHONE = "919890544745";
+
+function openWhatsAppInquiry(message) {
+  const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE}?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+}
+
 // Map API property to landing card shape
 function mapApiPropertyToCard(p) {
   const type = p.sale ? "sale" : "rent";
   const category = p.type ? String(p.type).charAt(0).toUpperCase() + String(p.type).slice(1).toLowerCase() : "Residential";
+  const detailsSummary = summarizePropertyDetails(p);
   return {
     id: p.id,
     title: p.title,
@@ -85,6 +85,8 @@ function mapApiPropertyToCard(p) {
     area: p.sqft,
     desc: p.description,
     features: Array.isArray(p.tags) ? p.tags : [],
+    propertyDetails: p.property_details || p.propertyDetails || {},
+    detailSummary: detailsSummary,
     type,
     category,
   };
@@ -131,292 +133,6 @@ function Underline({ align = 'center', width = 'w-[7.5rem] sm:w-[9rem] md:w-[10.
     </div>
   );
 }
-
-function LoginModal({ open, setOpen }) {
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  const { login } = useAuth();
-  const [loading, setLoading] = React.useState(false);
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [error, setError] = React.useState("");
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (!email || !password) {
-      setError("Email and password are required");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await login(email, password);
-
-      console.log("LOGIN RES:", res); // ✅ debug
-
-      if (!res) {
-        toast({
-          title: "Login failed",
-          description: "No response from server",
-        });
-        return;
-      }
-
-      if (res.status !== 200) {
-        toast({
-          title: "Login failed",
-          description: res?.data?.error || res?.data?.message || "Invalid credentials",
-        });
-        return;
-      }
-
-      toast({
-        title: "Login successful",
-        description: "Welcome to Vespera Admin Panel",
-      });
-
-      setOpen(false);
-      navigate("/dashboard/admin", { replace: true });
-    } catch (error) {
-      console.log("Login Error:", error);
-
-      toast({
-        title: "Login failed",
-        description:
-          error?.response?.data?.error ||
-          error?.response?.data?.message ||
-          error?.message ||
-          "Server error, please try again",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="gold-panel border border-white/10 text-white backdrop-blur-xl bg-white/[0.04] max-w-md w-[92%] sm:w-full p-6 sm:p-8 rounded-2xl shadow-2xl shadow-black/50 ring-1 ring-white/10">
-        <DialogHeader>
-          <DialogTitle className="font-serif text-2xl text-gold">
-            Welcome back
-          </DialogTitle>
-          <DialogDescription className="text-white/60">
-            Vespera Estates Admin Access
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-2">
-            <Label>Email</Label>
-            <Input
-              type="email"
-              required
-              placeholder="admin@vespera.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="bg-black/40 border-white/15 text-white"
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Password</Label>
-            <div className="relative">
-              <Input
-                type={showPassword ? "text" : "password"}
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-black/40 border-white/15 text-white pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                className="absolute inset-y-0 right-2 flex items-center text-white/60"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          {error && <div className="text-red-400 text-sm">{error}</div>}
-
-          <DialogFooter>
-            <Button type="submit" className="gold-btn gold-shine" disabled={loading}>
-              {loading ? "Logging in..." : "Login"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-
-function ConsultationModal({ open, setOpen, defaults = {} }) {
-  const { toast } = useToast();
-  const [loading, setLoading] = React.useState(false);
-  const title = defaults.title || 'Schedule a Consultation';
-
-  // Country code mapping (simple)
-  const getCountryCode = (num) => {
-    if (num.startsWith('1')) return '+1'; // USA/Canada
-    if (num.startsWith('44')) return '+44'; // UK
-    if (num.startsWith('61')) return '+61'; // Australia
-    if (num.startsWith('65')) return '+65'; // Singapore
-    if (num.startsWith('971')) return '+971'; // UAE
-    return '+91'; // default India
-  };
-
-  // Handle form submit
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const full_name = data.get('name');
-    const email = data.get('email');
-    let phone = data.get('phone');
-    const date_time = data.get('datetime');
-    const interest = data.get('interest');
-    const message = data.get('message');
-
-    if (!full_name || !email) {
-      toast({ title: 'Error', description: 'Full name and email are required.', variant: 'destructive' });
-      return;
-    }
-
-    // Normalize phone number before sending
-    // Remove everything except digits
-    let clean = phone.replace(/\D/g, '');
-    // Guess country code
-    const code = getCountryCode(clean);
-    // Remove local prefix if duplicated
-    clean = clean.replace(/^91|^1|^44|^61|^65|^971/, '');
-    // Final E.164 format
-    const finalPhone = code + clean;
-
-    setLoading(true);
-    try {
-      const res = await fetch('http://localhost:5174/api/userDetails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name, email, phone: finalPhone, date_time, interest, message }),
-      });
-
-      if (!res.ok) throw new Error('Failed to submit form');
-
-      const result = await res.json();
-
-      toast({
-        title: 'Success!',
-        description: result.message || 'Your consultation request has been submitted.',
-      });
-
-      e.target.reset();
-      setOpen(false);
-    } catch (err) {
-      console.error('Error submitting form:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to send details. Please try again later.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="gold-panel border border-white/10 text-white backdrop-blur-xl bg-white/[0.04] max-w-md w-[92%] sm:w-full p-6 sm:p-8 rounded-2xl shadow-2xl ring-1 ring-white/10">
-        <DialogHeader>
-          <DialogTitle className="font-serif text-xl text-gold">{title}</DialogTitle>
-          <DialogDescription className="text-white/70">
-            Pick a convenient date and time. Our team will confirm your appointment.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="cons_name">Full Name</Label>
-            <Input id="cons_name" name="name" required placeholder="Your full name" defaultValue={defaults.name || ''} className="bg-black/40 border-white/15 text-white" />
-          </div>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="cons_email">Email</Label>
-              <Input id="cons_email" name="email" type="email" required placeholder="you@domain.com" defaultValue={defaults.email || ''} className="bg-black/40 border-white/15 text-white w-full" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="cons_phone">Phone</Label>
-              <Input
-                id="cons_phone"
-                name="phone"
-                type="tel"
-                required
-                placeholder="+91 98/65 43210"
-                defaultValue={defaults.phone || ''}
-                className="bg-black/40 border-white/15 text-white w-full"
-                onChange={(e) => {
-                  let input = e.target.value.replace(/\D/g, '');
-
-                  // Guess country code dynamically
-                  const code = getCountryCode(input);
-                  input = input.replace(/^91|^1|^44|^61|^65|^971/, '');
-                  input = input.slice(0, 10);
-
-                  let formatted = code;
-                  if (input.length > 0) {
-                    formatted += ' ';
-                    if (input.length > 5) {
-                      formatted += input.slice(0, 5) + ' ' + input.slice(5);
-                    } else {
-                      formatted += input;
-                    }
-                  }
-
-                  e.target.value = formatted;
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="cons_datetime">Preferred Date & Time</Label>
-              <Input id="cons_datetime" name="datetime" type="datetime-local" required defaultValue={defaults.datetime || ''} className="bg-black/40 border-white/15 text-white appearance-none" style={{ width: '197px' }} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="cons_interest">Interest</Label>
-              <select id="cons_interest" name="interest" defaultValue={defaults.interest || 'Consultation'} className="bg-black/40 border border-white/15 text-white rounded-md h-10 px-3">
-                <option>Buying</option>
-                <option>Selling</option>
-                <option>Renting</option>
-                <option>Consultation</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="cons_msg">Message (optional)</Label>
-            <textarea id="cons_msg" name="message" rows={3} placeholder="Tell us anything specific you'd like to discuss" defaultValue={defaults.message || ''} className="bg-black/40 border border-white/15 text-white rounded-md p-3" />
-          </div>
-
-          <DialogFooter>
-            <Button type="submit" className="gold-btn gold-shine" disabled={loading}>
-              {loading ? 'Booking...' : 'Book Appointment'}
-            </Button>
-            <Button type="button" variant="ghost" className="text-white/70 hover:text-white" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 
 function Hero() {
   const [hasVideo, setHasVideo] = React.useState(false);
@@ -638,7 +354,7 @@ function ServiceCard({ title, desc, icon: Icon }) {
   );
 }
 
-function Services({ onOpenConsultation }) {
+function Services() {
   const CARDS = [
     {
       title: 'Buy a Property',
@@ -721,7 +437,12 @@ function Services({ onOpenConsultation }) {
               Let our experienced team help you navigate Pune's real estate market and achieve your property goals with confidence.
             </p>
             <div className="mt-5">
-              <button onClick={() => onOpenConsultation?.()} className="gold-btn gold-shine rounded-md inline-flex items-center gap-2">
+              <button
+                onClick={() =>
+                  openWhatsAppInquiry("Hello Vespera Estates, I would like to schedule a consultation about your real estate services.")
+                }
+                className="gold-btn gold-shine rounded-md inline-flex items-center gap-2"
+              >
                 Schedule Consultation <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -747,9 +468,14 @@ function Services({ onOpenConsultation }) {
             </ul>
           )}
           <DialogFooter>
-            <a href="#contact">
-              <Button className="gold-btn gold-shine">Talk to an expert</Button>
-            </a>
+            <Button
+              className="gold-btn gold-shine"
+              onClick={() =>
+                openWhatsAppInquiry(`Hello Vespera Estates, I would like to talk to an expert about ${selectedService?.title || "your services"}.`)
+              }
+            >
+              Talk to an expert
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -793,11 +519,15 @@ function PropertyCard({ item, type, category, onToggleSave, saved, view = 'grid'
         {item.desc && (
           <p className="mt-2 text-white/75 text-sm">{item.desc}</p>
         )}
-        <div className="mt-3 flex items-center gap-4 text-white/70 text-sm">
-          <span className="inline-flex items-center gap-1"><BedDouble className="h-4 w-4" /> {item.beds} Beds</span>
-          <span className="inline-flex items-center gap-1"><Bath className="h-4 w-4" /> {item.baths} Baths</span>
-          <span className="inline-flex items-center gap-1"><Ruler className="h-4 w-4" /> {item.area} sq ft</span>
-        </div>
+        {Array.isArray(item.detailSummary) && item.detailSummary.length > 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-white/70">
+            {item.detailSummary.map((detail) => (
+              <span key={detail} className="inline-flex items-center gap-1">
+                <Ruler className="h-4 w-4" /> {detail}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {Array.isArray(item.features) && item.features.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {item.features.slice(0, 3).map((f, i) => (
@@ -817,7 +547,7 @@ function PropertyCard({ item, type, category, onToggleSave, saved, view = 'grid'
   );
 }
 
-function Featured({ onOpenConsultation }) {
+function Featured() {
   const { toast } = useToast();
   const [filter, setFilter] = React.useState('all');
   const [view, setView] = React.useState('grid');
@@ -899,6 +629,13 @@ function Featured({ onOpenConsultation }) {
     commercial: allList.filter(p => p.category === 'Commercial').length,
   }
 
+  const openPropertyWhatsApp = React.useCallback((property) => {
+    const propertyTitle = property?.title ? ` for ${property.title}` : "";
+    const propertyLocation = property?.location ? ` in ${property.location}` : "";
+    const message = `Hello Vespera Estates, I am interested in this property${propertyTitle}${propertyLocation}. Please share more details.`;
+    openWhatsAppInquiry(message);
+  }, []);
+
   const filtered = React.useMemo(() => {
     switch (filter) {
       case 'sale': return allList.filter(p => p.type === 'sale')
@@ -965,7 +702,7 @@ function Featured({ onOpenConsultation }) {
                 saved={saved.has(p.id)}
                 view={view}
                 onViewDetails={(it) => { setActive(it); setOpenDetails(true); }}
-                onContact={() => smoothScrollTo('contact')}
+                onContact={openPropertyWhatsApp}
               />
             ))}
           </div>
@@ -984,8 +721,17 @@ function Featured({ onOpenConsultation }) {
             <h3 className="h3-section text-white">Don't See What You're Looking For?</h3>
             <p className="mt-3 text-white/75 max-w-3xl mx-auto">Our team has access to exclusive off-market properties and can help you find exactly what you're looking for in Pune's real estate market.</p>
             <div className="mt-5 flex items-center justify-center gap-4 flex-wrap">
-              <Button className="gold-btn gold-shine rounded-full" onClick={() => onOpenConsultation?.({ title: 'Request Custom Search', interest: 'Buying', message: 'I would like a custom property search tailored to my preferences.' })}>Request Custom Search</Button>
-              <Button className="rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/15" onClick={() => onOpenConsultation?.({ title: 'Talk to an Expert', interest: 'Consultation', message: 'I want to speak with an expert about my requirements.' })}>Talk to Expert</Button>
+              <Button
+                className="gold-btn gold-shine rounded-full"
+                onClick={() =>
+                  openPropertyWhatsApp({
+                    title: "off-market properties",
+                    location: "Pune",
+                  })
+                }
+              >
+                Talk to Expert
+              </Button>
             </div>
           </div>
         </div>
@@ -999,11 +745,13 @@ function Featured({ onOpenConsultation }) {
                 <h3 className="font-serif text-xl text-gold">{active.title}</h3>
                 <div className="mt-2 text-white/80 text-sm flex items-center gap-2"><MapPin className="h-4 w-4" /> {active.location}</div>
                 {active.desc && <p className="mt-3 text-white/75 text-sm">{active.desc}</p>}
-                <div className="mt-3 text-white/80 text-sm">
-                  {active.beds != null && <div>Bedrooms: {active.beds}</div>}
-                  {active.baths != null && <div>Bathrooms: {active.baths}</div>}
-                  {active.area != null && <div>Area: {active.area} sq ft</div>}
-                </div>
+                {Array.isArray(active.detailSummary) && active.detailSummary.length > 0 ? (
+                  <div className="mt-3 text-sm text-white/80">
+                    {active.detailSummary.map((detail) => (
+                      <div key={detail}>{detail}</div>
+                    ))}
+                  </div>
+                ) : null}
                 {Array.isArray(active.features) && active.features.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {active.features.map((f, i) => (
@@ -1012,7 +760,7 @@ function Featured({ onOpenConsultation }) {
                   </div>
                 )}
                 <div className="mt-5 flex items-center gap-3">
-                  <Button className="gold-btn gold-shine" onClick={() => { setOpenDetails(false); smoothScrollTo('contact'); }}>Contact</Button>
+                  <Button className="gold-btn gold-shine" onClick={() => openPropertyWhatsApp(active)}>Contact</Button>
                   <Button variant="ghost" className="text-white/70 hover:text-white" onClick={() => setOpenDetails(false)}>Close</Button>
                 </div>
               </div>
@@ -1130,77 +878,7 @@ function Testimonials() {
   );
 }
 
-function ContactSection({ onOpenConsultation }) {
-  const { toast } = useToast();
-
-  // ✅ Country code mapping (same as ConsultationModal)
-  const getCountryCode = (num) => {
-    if (num.startsWith('1')) return '+1'; // USA/Canada
-    if (num.startsWith('44')) return '+44'; // UK
-    if (num.startsWith('61')) return '+61'; // Australia
-    if (num.startsWith('65')) return '+65'; // Singapore
-    if (num.startsWith('971')) return '+971'; // UAE
-    return '+91'; // default India
-  };
-
-  // ✅ Form submit logic (same as ConsultationModal)
-  const onSubmit = async (e) => {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const full_name = data.get('full');
-    const email = data.get('email');
-    let phone = data.get('phone');
-    const interest = data.get('interest');
-    const message = data.get('message');
-
-    if (!full_name || !email) {
-      toast({
-        title: 'Error',
-        description: 'Full name and email are required.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // ✅ Normalize phone number before sending
-    let clean = phone.replace(/\D/g, '');
-    const code = getCountryCode(clean);
-    clean = clean.replace(/^91|^1|^44|^61|^65|^971/, '');
-    const finalPhone = code + clean;
-
-    try {
-      const res = await fetch('http://localhost:5174/api/userDetails', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          full_name,
-          email,
-          phone: finalPhone,
-          interest,
-          message,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to submit form');
-
-      const result = await res.json();
-
-      toast({
-        title: 'Success!',
-        description: result.message || 'Your message has been sent successfully.',
-      });
-
-      e.target.reset();
-    } catch (err) {
-      console.error('❌ Error submitting form:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to send message. Please try again later.',
-        variant: 'destructive',
-      });
-    }
-  };
-
+function ContactSection() {
   return (
     <section id="contact" className="bg-[#0A0A0A] py-20 scroll-mt-24 md:scroll-mt-28">
       <div className="max-w-7xl mx-auto px-4 md:px-6">
@@ -1216,205 +894,117 @@ function ContactSection({ onOpenConsultation }) {
           </p>
         </div>
 
-        <div className="mt-10 grid lg:grid-cols-2 gap-6 items-start">
-          {/* ✅ Contact form section */}
-          <div className="rounded-2xl border border-white/10 bg-[#0B0B0B] p-6 md:p-8">
-            <h3 className="h3-section text-white">Send Us a Message</h3>
-            <form onSubmit={onSubmit} className="mt-6 grid gap-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="full">Full Name</Label>
-                  <Input
-                    id="full"
-                    name="full"
-                    required
-                    placeholder="Enter your full name"
-                    className="bg-black/40 border-white/15 text-white"
-                  />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="email2">Email Address</Label>
-                  <Input
-                    id="email2"
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="Enter your email"
-                    className="bg-black/40 border-white/15 text-white"
-                  />
-                </div>
+        <div className="mt-10 mx-auto max-w-5xl">
+          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-[#0B0B0B] shadow-[0_28px_80px_-36px_rgba(0,0,0,0.75)]">
+            <div className="border-b border-white/10 px-6 py-6 md:px-10 md:py-8">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.28em] text-gold">
+                Contact Concierge
               </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    placeholder="+91 98/65 43210"
-                    className="bg-black/40 border-white/15 text-white"
-                    onChange={(e) => {
-                      let input = e.target.value.replace(/\D/g, '');
-                      const code = getCountryCode(input);
-                      input = input.replace(/^91|^1|^44|^61|^65|^971/, '');
-                      input = input.slice(0, 10);
-
-                      let formatted = code;
-                      if (input.length > 0) {
-                        formatted += ' ';
-                        if (input.length > 5) {
-                          formatted += input.slice(0, 5) + ' ' + input.slice(5);
-                        } else {
-                          formatted += input;
-                        }
-                      }
-
-                      e.target.value = formatted;
-                    }}
-                  />
+              <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h3 className="h3-section text-white">Get in Touch</h3>
+                  <p className="mt-3 max-w-2xl text-sm leading-7 text-white/70 md:text-base">
+                    Connect with Vespera Estates for private property consultations, curated buying guidance, and premium real estate support tailored to your goals.
+                  </p>
                 </div>
-
-                <div className="grid gap-1.5">
-                  <Label htmlFor="interest">Property Interest</Label>
-                  <select
-                    id="interest"
-                    name="interest"
-                    className="bg-black/40 border border-white/15 text-white rounded-md h-10 px-3"
-                  >
-                    <option>Buying</option>
-                    <option>Selling</option>
-                    <option>Renting</option>
-                    <option>Consultation</option>
-                  </select>
-                </div>
+                <Button
+                  className="gold-btn gold-shine rounded-full px-6"
+                  onClick={() =>
+                    openWhatsAppInquiry("Hello Vespera Estates, I would like to schedule a consultation about a property.")
+                  }
+                >
+                  Schedule Consultation
+                </Button>
               </div>
+            </div>
 
-              <div className="grid gap-1.5">
-                <Label htmlFor="message">Message</Label>
-                <textarea
-                  id="message"
-                  name="message"
-                  rows={4}
-                  placeholder="Tell us about your property requirements..."
-                  className="bg-black/40 border border-white/15 text-white rounded-md p-3"
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="gold-btn gold-shine rounded-full w-full inline-flex items-center justify-center gap-2"
-              >
-                <Send className="h-4 w-4" /> Send Message
-              </Button>
-            </form>
-          </div>
-
-          {/* ✅ Contact info panel (unchanged) */}
-          <div className="space-y-6">
-            <div className="rounded-2xl border border-white/10 bg-[#0B0B0B] p-6 md:p-8">
-              <h3 className="h3-section text-white">Get in Touch</h3>
-              <div className="mt-6 space-y-5">
-                {/* Phone */}
+            <div className="grid gap-5 px-6 py-6 md:grid-cols-2 md:px-10 md:py-8 xl:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-start gap-3">
-                  <div className="h-9 w-9 rounded-md bg-[#D4AF37]/10 border border-[#D4AF37]/40 text-gold flex items-center justify-center">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#D4AF37]/40 bg-[#D4AF37]/10 text-gold">
                     <Phone className="h-4 w-4" />
                   </div>
                   <div className="text-sm text-white/80">
-                    <div className="text-white">Call Us</div>
+                    <div className="font-medium text-white">Call Us</div>
                     <div>
-                      <a
-                        href="tel:+919876543210"
-                        aria-label="Call +91 98765 43210"
-                        className="hover:text-gold hover:underline underline-offset-2"
-                      >
+                      <a href="tel:+919876543210" aria-label="Call +91 98765 43210" className="hover:text-gold hover:underline underline-offset-2">
                         +91 98765 43210
                       </a>
                     </div>
                     <div>
-                      <a
-                        href="tel:+91865432109"
-                        aria-label="Call +91 8/654 32109"
-                        className="hover:text-gold hover:underline underline-offset-2"
-                      >
+                      <a href="tel:+91865432109" aria-label="Call +91 86543 2109" className="hover:text-gold hover:underline underline-offset-2">
                         +91 8/654 32109
                       </a>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Email */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-start gap-3">
-                  <div className="h-9 w-9 rounded-md bg-[#D4AF37]/10 border border-[#D4AF37]/40 text-gold flex items-center justify-center">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#D4AF37]/40 bg-[#D4AF37]/10 text-gold">
                     <Mail className="h-4 w-4" />
                   </div>
                   <div className="text-sm text-white/80">
-                    <div className="text-white">Email Us</div>
+                    <div className="font-medium text-white">Email & Social</div>
                     <div>
-                      <a
-                        href="mailto:info@vesperaestates.com"
-                        className="hover:text-gold hover:underline underline-offset-2"
-                      >
+                      <a href="mailto:info@vesperaestates.com" className="hover:text-gold hover:underline underline-offset-2">
                         info@vesperaestates.com
                       </a>
                     </div>
                     <div>
+                      <a href="mailto:sales@vesperaestates.com" className="hover:text-gold hover:underline underline-offset-2">
+                        sales@vesperaestates.com
+                      </a>
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <Instagram className="h-4 w-4 text-gold" />
                       <a
-                        href="mailto:sales@vesperaestates.com"
+                        href="https://www.instagram.com/vesperaestates_pvt?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hover:text-gold hover:underline underline-offset-2"
                       >
-                        sales@vesperaestates.com
+                        @vesperaestates_pvt
                       </a>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Location */}
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-start gap-3">
-                  <div className="h-9 w-9 rounded-md bg-[#D4AF37]/10 border border-[#D4AF37]/40 text-gold flex items-center justify-center">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#D4AF37]/40 bg-[#D4AF37]/10 text-gold">
                     <MapPin className="h-4 w-4" />
                   </div>
                   <div className="text-sm text-white/80">
-                    <div className="text-white">Visit Us</div>
+                    <div className="font-medium text-white">Visit Us</div>
                     <a
-                      href="https://www.google.com/maps?q=123%20ABC%20Complex%2C%20Koregaon%20Park%2C%20Pune%2C%20Maharashtra%20411001"
+                      href="https://www.google.com/maps?q=Space%2031%2C%20Khadi%20Machine%20Chowk%2C%20opp.%20Reliance%20Smart%2C%20Tyni%20Audyogic%20Wasahat%2C%20Kondhwa%2C%20Pune%2C%20Maharashtra%20411048"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:text-gold hover:underline underline-offset-2"
                     >
-                      <div>123 ABC Complex, Koregaon Park</div>
-                      <div>Pune, Maharashtra 411001</div>
+                      <div>Space 31</div>
+                      <div>Khadi Machine Chowk, opp. Reliance Smart</div>
+                      <div>Tyni Audyogic Wasahat, Kondhwa</div>
+                      <div>Pune, Maharashtra 411048</div>
                     </a>
                   </div>
                 </div>
+              </div>
 
-                {/* Hours */}
+              <div className="rounded-2xl border border-[#D4AF37]/18 bg-[linear-gradient(180deg,rgba(212,175,55,0.08),rgba(255,255,255,0.02))] p-5">
                 <div className="flex items-start gap-3">
-                  <div className="h-9 w-9 rounded-md bg-[#D4AF37]/10 border border-[#D4AF37]/40 text-gold flex items-center justify-center">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-md border border-[#D4AF37]/40 bg-[#D4AF37]/10 text-gold">
                     <Clock className="h-4 w-4" />
                   </div>
                   <div className="text-sm text-white/80">
-                    <div className="text-white">Office Hours</div>
-                    <div>Monday – Saturday: 9:00 AM – 7:00 PM</div>
-                    <div>Sunday: 10:00 AM – 5:00 PM</div>
+                    <div className="font-medium text-white">Office Hours</div>
+                    <div>Monday - Saturday: 9:00 AM - 7:00 PM</div>
+                    <div>Sunday: 10:00 AM - 5:00 PM</div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="relative gold-panel rounded-2xl border border-[#D4AF37]/20 bg-black/40 backdrop-blur-xl p-6">
-              <h4 className="text-white font-semibold">Ready to Get Started?</h4>
-              <p className="mt-2 text-white/75">
-                Schedule a free consultation with our property experts and discover the luxury you deserve in life.
-              </p>
-              <div className="mt-4">
-                <Button
-                  className="gold-btn gold-shine rounded-full"
-                  onClick={() => onOpenConsultation?.()}
-                >
-                  Schedule Consultation
-                </Button>
               </div>
             </div>
           </div>
@@ -1424,8 +1014,7 @@ function ContactSection({ onOpenConsultation }) {
   );
 }
 
-
-function CalloutCTA({ onOpenConsultation }) {
+function CalloutCTA() {
   return (
     <section id="work" className="relative py-20 bg-black scroll-mt-24 md:scroll-mt-28">
       <div className="absolute inset-0" style={{
@@ -1440,7 +1029,14 @@ function CalloutCTA({ onOpenConsultation }) {
             Partner with our expert advisors for a discreet, high-touch experience that delivers results.
           </p>
           <div className="mt-6">
-            <Button className="gold-btn gold-shine" onClick={() => onOpenConsultation?.({ title: 'Work With Us', interest: 'Consultation' })}>Work With Us</Button>
+            <Button
+              className="gold-btn gold-shine"
+              onClick={() =>
+                openWhatsAppInquiry("Hello Vespera Estates, I would like to work with your team. Please share more details.")
+              }
+            >
+              Work With Us
+            </Button>
           </div>
         </div>
       </div>
@@ -1504,10 +1100,6 @@ function Footer() {
 }
 
 export default function LandingPage() {
-  const [openLogin, setOpenLogin] = React.useState(false);
-  const [openConsult, setOpenConsult] = React.useState(false);
-  const [consultDefaults, setConsultDefaults] = React.useState({});
-
   React.useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
@@ -1520,21 +1112,19 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <SiteHeader authMode="public" onLogin={() => setOpenLogin(true)} />
+      <SiteHeader theme="dark" />
       <main>
         <Hero />
         <About />
-        <Services onOpenConsultation={(d) => { setConsultDefaults(d || {}); setOpenConsult(true); }} />
-        <Featured onOpenConsultation={(d) => { setConsultDefaults(d || {}); setOpenConsult(true); }} />
+        <Services />
+        <Featured />
         <WhyChooseUs />
         <Testimonials />
-        <ContactSection onOpenConsultation={(d) => { setConsultDefaults(d || {}); setOpenConsult(true); }} />
-        <CalloutCTA onOpenConsultation={(d) => { setConsultDefaults(d || {}); setOpenConsult(true); }} />
+        <ContactSection />
+        <CalloutCTA />
         <FAQs />
       </main>
       <SiteFooter />
-      <LoginModal open={openLogin} setOpen={setOpenLogin} />
-      <ConsultationModal open={openConsult} setOpen={setOpenConsult} defaults={consultDefaults} />
     </div>
   );
 }
