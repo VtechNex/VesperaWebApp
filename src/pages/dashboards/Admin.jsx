@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { Button } from '../../components/ui/button'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Moon, RefreshCw, Sun, Users } from 'lucide-react'
 import { ChevronDown, Building2, Image as ImageIcon } from "lucide-react"
 import ManagePropertiesMedia from './components/ManagePropertiesMedia'
@@ -31,7 +31,9 @@ import Skeleton from '../../components/ui/Skeleton'
 import StatCardSkeleton from '../../components/ui/StatCardSkeleton'
 import TableSkeleton from '../../components/ui/TableSkeleton'
 import { useAuth } from '../../context/AuthContext'
+import usePermissions from '../../hooks/usePermissions'
 import { buildDashboardAnalytics } from '../../utils/dashboardAnalytics'
+import AccessRestricted from '../../components/AccessRestricted'
 import {
   Bar,
   BarChart,
@@ -174,6 +176,46 @@ const DASHBOARD_METRICS = [
   "Tags",
   "Potential",
 ]
+
+const TAB_ROUTE_MAP = {
+  dashboard: "/dashboard/admin",
+  "manage-list": "/dashboard/admin/manage-list",
+  "manage-leads-all": "/dashboard/admin/leads",
+  "manage-leads-unattended": "/dashboard/admin/leads/unattended",
+  "manage-users": "/dashboard/admin/manage-users",
+  "settings-user": "/dashboard/admin/settings/user-profile",
+  "settings-company": "/dashboard/admin/settings/company-profile",
+  "settings-qualifiers": "/dashboard/admin/settings/manage-qualifiers",
+  "settings-lead-stage": "/dashboard/admin/settings/lead-stage-customization",
+  "manage-properties": "/dashboard/admin/properties-media",
+}
+
+const PATH_TAB_MAP = {
+  "/dashboard/admin": "dashboard",
+  "/dashboard/admin/leads": "manage-leads-all",
+  "/dashboard/admin/leads/unattended": "manage-leads-unattended",
+  "/dashboard/admin/add-leads": "dashboard",
+  "/dashboard/admin/manage-list": "manage-list",
+  "/dashboard/admin/manage-users": "manage-users",
+  "/dashboard/admin/settings/user-profile": "settings-user",
+  "/dashboard/admin/settings/company-profile": "settings-company",
+  "/dashboard/admin/settings/manage-qualifiers": "settings-qualifiers",
+  "/dashboard/admin/settings/lead-stage-customization": "settings-lead-stage",
+  "/dashboard/admin/properties-media": "manage-properties",
+}
+
+const TAB_PERMISSION_MAP = {
+  dashboard: "canViewDashboard",
+  "manage-list": "canViewLists",
+  "manage-leads-all": "canViewLeads",
+  "manage-leads-unattended": "canViewLeads",
+  "manage-users": "canManageUsers",
+  "settings-user": "canManageUsers",
+  "settings-company": "canManageCompanyProfile",
+  "settings-qualifiers": "canManageQualifiers",
+  "settings-lead-stage": "canManageLeadStages",
+  "manage-properties": "canManagePropertyMedia",
+}
 
 const DASHBOARD_METRIC_ICONS = {
   "Lead Stage": (
@@ -334,14 +376,24 @@ function DashboardMetricChart({ title, rows, total, theme = 'dark' }) {
 
 export default function Admin() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { logout, user } = useAuth()
+  const { hasPermission } = usePermissions()
+  const canViewLists = hasPermission('canViewLists')
+  const canCreateLead = hasPermission('canCreateLead')
+  const canManageUsers = hasPermission('canManageUsers')
+  const canManageSettings = hasPermission('canManageSettings')
+  const canManageCompanyProfile = hasPermission('canManageCompanyProfile')
+  const canManageQualifiers = hasPermission('canManageQualifiers')
+  const canManageLeadStages = hasPermission('canManageLeadStages')
+  const canManagePropertyMedia = hasPermission('canManagePropertyMedia')
   const onLogout = () => {
     logout()
     navigate('/')
   }
 
   // Tabs or states
-  const [tab, setTab] = useState(() => localStorage.getItem('vespera_admin_tab') || 'dashboard')
+  const [tab, setTab] = useState(() => PATH_TAB_MAP[window.location.pathname] || localStorage.getItem('vespera_admin_tab') || 'dashboard')
   const [settingsOpen, setSettingsOpen] = useState(() => localStorage.getItem('vespera_admin_settings_open') === 'true')
   const [manageLeadsOpen, setManageLeadsOpen] = useState(() => localStorage.getItem('vespera_admin_manage_leads_open') === 'true')
   const [activeDashboardTab, setActiveDashboardTab] = useState("Lead Stage")
@@ -370,6 +422,11 @@ export default function Admin() {
     tab === 'manage-leads' ||
     tab === 'manage-leads-all' ||
     tab === 'manage-leads-unattended'
+
+  const activeTabPermission = location.pathname === '/dashboard/admin/add-leads'
+    ? 'canCreateLead'
+    : TAB_PERMISSION_MAP[tab]
+  const isTabAllowed = !activeTabPermission || hasPermission(activeTabPermission)
 
   const loadDashboard = async () => {
     setLoadingDashboard(true)
@@ -418,6 +475,20 @@ export default function Admin() {
   }, [tab])
 
   useEffect(() => {
+    const nextTab = PATH_TAB_MAP[location.pathname] || 'dashboard'
+    setTab(nextTab)
+    if (location.pathname === '/dashboard/admin/add-leads' && canCreateLead) {
+      setShowAddLeadModal(true)
+    }
+    if (nextTab === 'manage-leads-all' || nextTab === 'manage-leads-unattended') {
+      setManageLeadsOpen(true)
+    }
+    if (nextTab.startsWith('settings-')) {
+      setSettingsOpen(true)
+    }
+  }, [canCreateLead, location.pathname])
+
+  useEffect(() => {
     localStorage.setItem('vespera_admin_settings_open', String(settingsOpen))
   }, [settingsOpen])
 
@@ -428,6 +499,11 @@ export default function Admin() {
   useEffect(() => {
     localStorage.setItem('vespera_dashboard_theme', dashboardTheme)
   }, [dashboardTheme])
+
+  const selectTab = (nextTab) => {
+    setTab(nextTab)
+    navigate(TAB_ROUTE_MAP[nextTab] || '/dashboard/admin')
+  }
 
   // compute total revenue from leads' potential
   const totalRevenue = useMemo(() => {
@@ -660,7 +736,7 @@ export default function Admin() {
   const NavItem = ({ icon: Icon, label, id, onClick }) => (
     <button
       onClick={() => {
-        setTab(id)
+        selectTab(id)
         onClick?.()
       }}
       className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border transition-colors ${
@@ -746,7 +822,7 @@ export default function Admin() {
 
           <nav className="p-4 grid gap-2">
             <NavItem icon={LayoutGrid} label="Dashboard" id="dashboard" />
-            <NavItem icon={ListChecks} label="Manage List" id="manage-list" />
+            {canViewLists ? <NavItem icon={ListChecks} label="Manage List" id="manage-list" /> : null}
 
             {/* Manage Leads dropdown */}
             <div className="mt-1">
@@ -755,7 +831,7 @@ export default function Admin() {
                 onClick={() => {
                   setManageLeadsOpen((prev) => !prev)
                   setSelectedLeadListId('')
-                  setTab('manage-leads-all')
+                  selectTab('manage-leads-all')
                 }}
                 className={`w-full inline-flex items-center justify-between px-3 py-2 rounded-md text-sm border ${
                   isManageLeadsTab
@@ -781,7 +857,7 @@ export default function Admin() {
                     onClick={() => {
                       setManageLeadsOpen((prev) => !prev)
                       setSelectedLeadListId('')
-                      setTab('manage-leads-all')
+                      selectTab('manage-leads-all')
                     }} />
                   <NavItem
                     icon={Users2}
@@ -789,27 +865,30 @@ export default function Admin() {
                     id="manage-leads-unattended"
                     onClick={() => {
                       setManageLeadsOpen((prev) => !prev)
-                      setTab('manage-leads-unattended')
+                      selectTab('manage-leads-unattended')
                     }}
                   />
                 </div>
               )}
             </div>
 
-            <button
-              onClick={() => setShowAddLeadModal(true)}
-              className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border ${
-                isLightDashboard
-                  ? 'bg-white/70 text-slate-700 hover:text-slate-900 border-black/10 hover:bg-white'
-                  : 'bg-white/5 text-white/75 hover:text-white border-white/10'
-              }`}
-            >
-              <UserPlus className="h-4 w-4" />
-              <span>Add Leads</span>
-            </button>
-            <NavItem icon={Users} label="Manage Users" id="manage-users" />
+            {canCreateLead ? (
+              <button
+                onClick={() => navigate('/dashboard/admin/add-leads')}
+                className={`w-full inline-flex items-center gap-3 px-3 py-2 rounded-md text-sm border ${
+                  isLightDashboard
+                    ? 'bg-white/70 text-slate-700 hover:text-slate-900 border-black/10 hover:bg-white'
+                    : 'bg-white/5 text-white/75 hover:text-white border-white/10'
+                }`}
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Add Leads</span>
+              </button>
+            ) : null}
+            {canManageUsers ? <NavItem icon={Users} label="Manage Users" id="manage-users" /> : null}
 
             {/* Settings dropdown */}
+            {canManageSettings ? (
             <div className="mt-2">
               <button
                 type="button"
@@ -831,20 +910,23 @@ export default function Admin() {
 
               {settingsOpen && (
                 <div className="mt-1 ml-8 grid gap-1">
-                  <NavItem icon={Users} label="User Profile" id="settings-user" />
-                  <NavItem icon={Users} label="Company Profile" id="settings-company" />
-                  <NavItem icon={Users} label="Manage Qualifiers" id="settings-qualifiers" />
-                  <NavItem icon={Users} label="Lead Stage Customization" id="settings-lead-stage" />
+                  {canManageUsers ? <NavItem icon={Users} label="User Profile" id="settings-user" /> : null}
+                  {canManageCompanyProfile ? <NavItem icon={Users} label="Company Profile" id="settings-company" /> : null}
+                  {canManageQualifiers ? <NavItem icon={Users} label="Manage Qualifiers" id="settings-qualifiers" /> : null}
+                  {canManageLeadStages ? <NavItem icon={Users} label="Lead Stage Customization" id="settings-lead-stage" /> : null}
                 </div>
               )}
             </div>
+            ) : null}
           </nav>
           {/* Properties Media Tab Link */}
-          <NavItem
-            icon={Building2}
-            label="Properties Media"
-            id="manage-properties"
-          />
+          {canManagePropertyMedia ? (
+            <NavItem
+              icon={Building2}
+              label="Properties Media"
+              id="manage-properties"
+            />
+          ) : null}
           <div className={`mt-auto p-4 ${isLightDashboard ? 'border-t border-black/10' : 'border-t border-white/10'}`}>
             <Button className={`w-full ${isLightDashboard ? 'border border-black/10 bg-white text-slate-900 hover:bg-slate-50' : 'border border-white/20 bg-white/10 hover:bg-white/15'}`} onClick={onLogout}>
               Logout
@@ -873,8 +955,15 @@ export default function Admin() {
           </div>
 
           <div className="px-4 md:px-6 py-6 grid gap-6">
+            {!isTabAllowed ? (
+              <AccessRestricted
+                description="Your role does not have access to this admin section."
+                onAction={() => selectTab('dashboard')}
+              />
+            ) : null}
+
             {/* === DASHBOARD TAB === */}
-            {tab === 'dashboard' && (
+            {isTabAllowed && tab === 'dashboard' && (
               <div className={`rounded-2xl border p-6 space-y-6 transition-colors ${
                 isLightDashboard
                   ? 'border-black/10 bg-[linear-gradient(180deg,#ffffff_0%,#f8f5ef_100%)] text-slate-900 shadow-[0_30px_90px_-40px_rgba(15,23,42,0.3)]'
@@ -1021,15 +1110,15 @@ export default function Admin() {
             )}
 
             {/* === MANAGE LIST TAB === */}
-            {tab === 'manage-list' && (
+            {isTabAllowed && tab === 'manage-list' && (
               <div className="admin-panel-page">
                 <ManageList
                   lists={lists}
-                  onAddLeadClick={() => setShowAddLeadModal(true)}
+                  onAddLeadClick={() => navigate('/dashboard/admin/add-leads')}
                   onViewLeads={(list) => {
                     setSelectedLeadListId(String(list?.id || ''))
                     setManageLeadsOpen(true)
-                    setTab('manage-leads-all')
+                    selectTab('manage-leads-all')
                   }}
                   onDelete={async (id) => {
                     setGlobalLoading(true)
@@ -1053,7 +1142,7 @@ export default function Admin() {
             )}
 
             {/* === MANAGE LEADS TAB === */}
-            {(
+            {isTabAllowed && (
               tab === 'manage-leads' ||
               tab === 'manage-leads-all' ||
               tab === 'manage-leads-unattended'
@@ -1076,10 +1165,10 @@ export default function Admin() {
               )}
 
             {/* === MANAGE USERS TAB === */}
-            {tab === 'manage-users' && <div className="admin-panel-page"><ManageUsers /></div>}
+            {isTabAllowed && tab === 'manage-users' && <div className="admin-panel-page"><ManageUsers /></div>}
 
             {/* Add Lead Modal */}
-            {showAddLeadModal && (
+            {showAddLeadModal && canCreateLead && (
               <div className={`fixed inset-0 z-50 ${isLightDashboard ? 'admin-modal' : ''}`}>
 
                 {/* Overlay */}
@@ -1097,7 +1186,10 @@ export default function Admin() {
 
                     {/* Close Button */}
                     <button
-                      onClick={() => setShowAddLeadModal(false)}
+                      onClick={() => {
+                        setShowAddLeadModal(false)
+                        navigate('/dashboard/admin')
+                      }}
                       className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center
             rounded-full border border-white/20 text-white hover:bg-white/10 transition z-[60]"
                     >
@@ -1107,12 +1199,16 @@ export default function Admin() {
                     {/* Add Lead Form */}
                     <AddLeads
                       lists={lists}
-                      onCancel={() => setShowAddLeadModal(false)}
+                      onCancel={() => {
+                        setShowAddLeadModal(false)
+                        navigate('/dashboard/admin')
+                      }}
                       onCreate={async (payload) => {
                         setGlobalLoading(true)
                         try {
                           const saved = await createLead(payload)
                           setShowAddLeadModal(false)
+                          navigate('/dashboard/admin')
                           return saved
                         } catch (err) {
                           throw err
@@ -1277,19 +1373,19 @@ export default function Admin() {
             )}
 
             {/* === SETTINGS: USER PROFILE TAB === */}
-            {tab === 'settings-user' && <div className="admin-panel-page"><UserProfileSettings /></div>}
+            {isTabAllowed && tab === 'settings-user' && <div className="admin-panel-page"><UserProfileSettings /></div>}
 
             {/* === NEW: PROPERTIES MEDIA TAB === */}
-            {tab === 'manage-properties' && <div className="admin-panel-page"><ManagePropertiesMedia theme={dashboardTheme} /></div>}
+            {isTabAllowed && tab === 'manage-properties' && <div className="admin-panel-page"><ManagePropertiesMedia theme={dashboardTheme} /></div>}
 
             {/* === SETTINGS: COMPANY PROFILE TAB === */}
-            {tab === 'settings-company' && <div className="admin-panel-page"><CompanyProfileSettings /></div>}
+            {isTabAllowed && tab === 'settings-company' && <div className="admin-panel-page"><CompanyProfileSettings /></div>}
 
             {/* === SETTINGS: MANAGE QUALIFIERS TAB === */}
-            {tab === 'settings-qualifiers' && <div className="admin-panel-page"><ManageQualifiers /></div>}
+            {isTabAllowed && tab === 'settings-qualifiers' && <div className="admin-panel-page"><ManageQualifiers /></div>}
 
             {/* === SETTINGS: LEAD STAGE CUSTOMIZATION TAB === */}
-            {tab === 'settings-lead-stage' && <div className="admin-panel-page"><LeadStageCustomization /></div>}
+            {isTabAllowed && tab === 'settings-lead-stage' && <div className="admin-panel-page"><LeadStageCustomization /></div>}
           </div>
         </main>
       </div>

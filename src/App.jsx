@@ -27,15 +27,15 @@ export default function App() {
                 <Route
                   path="/dashboard/superadmin"
                   element={
-                    <ProtectedRoute roles={["admin"]}>
+                    <ProtectedRoute permission="canManageUsers">
                       <SuperAdmin />
                     </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/dashboard/admin"
+                  path="/dashboard/admin/*"
                   element={
-                    <ProtectedRoute roles={["admin", "owner", "manager", "l1", "l2"]}>
+                    <ProtectedRoute permission="canViewDashboard">
                       <Admin />
                     </ProtectedRoute>
                   }
@@ -43,7 +43,7 @@ export default function App() {
                 <Route
                   path="/dashboard/sales"
                   element={
-                    <ProtectedRoute roles={["sales", "manager", "l1", "l2", "admin"]}>
+                    <ProtectedRoute permission="canViewDashboard">
                       <Sales />
                     </ProtectedRoute>
                   }
@@ -51,7 +51,7 @@ export default function App() {
                 <Route
                   path="/dashboard/marketing"
                   element={
-                    <ProtectedRoute roles={["marketing", "admin"]}>
+                    <ProtectedRoute permission="canViewDashboard">
                       <Marketing />
                     </ProtectedRoute>
                   }
@@ -59,7 +59,7 @@ export default function App() {
                 <Route
                   path="/dashboard/customer"
                   element={
-                    <ProtectedRoute roles={["customer", "admin"]}>
+                    <ProtectedRoute permission="canViewDashboard">
                       <Customer />
                     </ProtectedRoute>
                   }

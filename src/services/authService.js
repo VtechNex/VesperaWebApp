@@ -1,6 +1,7 @@
 import API from "../utils/utils";
 import apiClient, { getStoredSession } from "./apiClient";
 import { encryptToken } from "../utils/crypto";
+import { normalizeRole } from "../permissions";
 
 const STORAGE_KEY = "user";
 
@@ -32,6 +33,7 @@ const login = async (email, password) => {
 
   setUser({
     ...user,
+    role: normalizeRole(user.role),
     token: encryptToken(token),
   });
 
@@ -43,6 +45,7 @@ const logout = () => {
 };
 
 const me = async () => apiClient.get(`${API.AUTH}/me`);
+const getAssignableUsers = async () => apiClient.get(`${API.AUTH}/assignable-users`);
 
 const AUTH = {
   LOGIN: login,
@@ -51,6 +54,7 @@ const AUTH = {
   GET_TOKEN: getAuthToken,
   SET_USER: setUser,
   ME: me,
+  GET_ASSIGNABLE_USERS: getAssignableUsers,
 };
 
 export default AUTH;

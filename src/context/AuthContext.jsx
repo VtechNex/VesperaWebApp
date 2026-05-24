@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import AUTH from "../services/authService";
+import { getPermissionsForRole, hasPermission as checkPermission, normalizeRole } from "../permissions";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "vespera_auth_event";
@@ -14,11 +15,13 @@ function createChannel() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [userProfile, setUserProfile] = useState(null);
   const channelRef = useRef(null);
 
   const performLogout = React.useCallback((sync = true) => {
     AUTH.LOGOUT();
     setUser(null);
+    setUserProfile(null);
     setStatus("unauthenticated");
 
     if (sync) {
@@ -33,6 +36,7 @@ export function AuthProvider({ children }) {
     const stored = AUTH.USER();
     if (!stored) {
       setUser(null);
+      setUserProfile(null);
       setStatus("unauthenticated");
       return;
     }
@@ -40,9 +44,10 @@ export function AuthProvider({ children }) {
     try {
       const response = await AUTH.ME();
       if (response?.status === 200 && response.data?.data) {
-        const mergedUser = { ...stored, ...response.data.data };
+        const mergedUser = { ...stored, ...response.data.data, role: normalizeRole(response.data.data?.role || stored?.role) };
         AUTH.SET_USER(mergedUser);
         setUser(mergedUser);
+        setUserProfile(response.data.data);
         setStatus("authenticated");
       } else {
         performLogout(false);
@@ -81,8 +86,14 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
+      userProfile,
+      userRole: normalizeRole(user?.role),
+      permissions: getPermissionsForRole(user?.role),
       status,
+      isAuthLoading: status === "loading",
+      isRoleLoading: status === "loading",
       isAuthenticated: status === "authenticated",
+      hasPermission: (permissionName) => checkPermission(user?.role, permissionName),
       login: async (email, password) => {
         const response = await AUTH.LOGIN(email, password);
         await rehydrate();
@@ -91,7 +102,7 @@ export function AuthProvider({ children }) {
       logout: () => performLogout(true),
       rehydrate,
     }),
-    [performLogout, rehydrate, status, user]
+    [performLogout, rehydrate, status, user, userProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

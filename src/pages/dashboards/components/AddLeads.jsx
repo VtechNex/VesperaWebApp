@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import LEADS from '../../../services/leadService'
 import LISTS from '../../../services/listService'
 import QUALIFIERS from '../../../services/qualifierService'
-import ADMIN from '../../../services/adminService'
+import AUTH from '../../../services/authService'
 import SETTINGS from '../../../services/settingsService'
 import { useToast } from '../../../hooks/use-toast'
 export default function AddLeads({ lists = [], onCreate }) {
@@ -82,13 +82,9 @@ export default function AddLeads({ lists = [], onCreate }) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await ADMIN.FETCH_USERS()
+        const response = await AUTH.GET_ASSIGNABLE_USERS()
         if (response && response.status === 200) {
-          // Filter users with roles: manager, l1, l2
-          const filteredUsers = response.data.data.filter(u =>
-            ['manager', 'l1', 'l2'].includes(u.role)
-          )
-          setAssigneeList(filteredUsers)
+          setAssigneeList(response.data.data || [])
         }
       } catch (err) {
         console.error('Failed to fetch users:', err)

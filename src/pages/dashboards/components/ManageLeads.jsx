@@ -24,7 +24,7 @@ import {
 } from "../../../components/ui/dialog";
 import LEADS from "../../../services/leadService";
 import QUALIFIERS from "../../../services/qualifierService";
-import ADMIN from "../../../services/adminService";
+import AUTH from "../../../services/authService";
 import { useToast } from "../../../hooks/use-toast";
 import { useAuth } from "../../../context/AuthContext";
 import { exportLeadsReport } from "../../../utils/exportLeadsReport";
@@ -34,6 +34,7 @@ import EmptyState from "../../../components/EmptyState";
 import Skeleton from "../../../components/ui/Skeleton";
 import StatCardSkeleton from "../../../components/ui/StatCardSkeleton";
 import TableSkeleton from "../../../components/ui/TableSkeleton";
+import usePermissions from "../../../hooks/usePermissions";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -112,6 +113,7 @@ function ManageLeads({
 }) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [searchParams, setSearchParams] = useSearchParams();
   const listDropdownRef = useRef(null);
   const toastRef = useRef(toast);
@@ -148,6 +150,10 @@ function ManageLeads({
   const [leadPendingDelete, setLeadPendingDelete] = useState(null);
   const [leadDeleteLoading, setLeadDeleteLoading] = useState(false);
   const debouncedSearch = useDebouncedValue(search, 250);
+  const canViewLeadPhone = hasPermission("canViewLeadPhone");
+  const canEditLead = hasPermission("canEditLead");
+  const canDeleteLead = hasPermission("canDeleteLead");
+  const canExportLeads = hasPermission("canExportLeads");
 
   useEffect(() => {
     toastRef.current = toast;
@@ -235,8 +241,13 @@ function ManageLeads({
     };
 
     const fetchUsers = async () => {
+      if (!canEditLead) {
+        setAssigneeList([]);
+        return;
+      }
+
       try {
-        const res = await ADMIN.FETCH_USERS();
+        const res = await AUTH.GET_ASSIGNABLE_USERS();
         if (res?.status === 200) {
           const users = Array.isArray(res.data?.data) ? res.data.data : [];
           setAssigneeList(users.filter((user) => user.is_active));
@@ -248,7 +259,7 @@ function ManageLeads({
 
     fetchQualifiers();
     fetchUsers();
-  }, []);
+  }, [canEditLead]);
 
   useEffect(() => {
     if (!initialListId) return;
@@ -289,7 +300,7 @@ function ManageLeads({
         return (
           fullName.includes(query) ||
           String(lead.email || "").toLowerCase().includes(query) ||
-          String(lead.mobile || "").toLowerCase().includes(query) ||
+          String(lead.mobile || lead.mobile_masked || "").toLowerCase().includes(query) ||
           String(lead.organization || "").toLowerCase().includes(query)
         );
       });
@@ -423,6 +434,7 @@ function ManageLeads({
 
   const handleDeleteLead = async () => {
     if (!leadPendingDelete?.id || leadDeleteLoading) return;
+    if (!canDeleteLead) return;
 
     setLeadDeleteLoading(true);
     try {
@@ -476,6 +488,7 @@ function ManageLeads({
   };
 
   const handleEditLead = async (id) => {
+    if (!canEditLead) return;
     try {
       const res = await LEADS.GET_BY_ID(id);
       if (res?.status !== 200 || !res.data?.data) {
@@ -520,6 +533,7 @@ function ManageLeads({
 
   const handleSaveEdit = async () => {
     if (!selectedLead) return;
+    if (!canEditLead) return;
     if (!selectedLead.fname || !selectedLead.mobile) {
       toast({
         title: "Missing required fields",
@@ -584,7 +598,7 @@ function ManageLeads({
 
   const handleExportLeads = async () => {
     if (exporting) return;
-    if (!["admin", "superadmin"].includes(String(user?.role || "").toLowerCase())) {
+    if (!canExportLeads) {
       toast({
         title: "Access denied",
         description: "You do not have permission to export leads.",
@@ -652,16 +666,18 @@ function ManageLeads({
               <RefreshCw className={`mr-1 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="gold-btn"
-              onClick={handleExportLeads}
-              disabled={exporting}
-            >
-              <Download className={`mr-1 h-4 w-4 ${exporting ? "animate-pulse" : ""}`} />
-              {exporting ? "Exporting..." : "Export"}
-            </Button>
+            {canExportLeads ? (
+              <Button
+                type="button"
+                size="sm"
+                className="gold-btn"
+                onClick={handleExportLeads}
+                disabled={exporting}
+              >
+                <Download className={`mr-1 h-4 w-4 ${exporting ? "animate-pulse" : ""}`} />
+                {exporting ? "Exporting..." : "Export"}
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -819,7 +835,7 @@ function ManageLeads({
                       </div>
 
                       <div className="min-w-0 space-y-1 text-xs">
-                        <div className="truncate">{lead.mobile || "-"}</div>
+                        <div className="truncate">{canViewLeadPhone ? lead.mobile || "-" : lead.mobile_masked || "Restricted"}</div>
                         <div className={`truncate ${subtleTextClassName}`}>{lead.email || "-"}</div>
                       </div>
 
@@ -841,42 +857,46 @@ function ManageLeads({
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className="px-2 py-2 text-red-400 hover:bg-red-500/10"
-                          onClick={() => openDeleteDialog(lead)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-
-                        <div className="relative">
+                        {canDeleteLead ? (
                           <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            onClick={() => setMoreOpenId(moreOpenId === lead.id ? null : lead.id)}
-                            className={isLightTheme ? "px-2 py-2 text-slate-700 hover:bg-slate-100" : "px-2 py-2 text-white/80 hover:bg-white/5"}
+                            className="px-2 py-2 text-red-400 hover:bg-red-500/10"
+                            onClick={() => openDeleteDialog(lead)}
                           >
-                            <MoreVertical className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
+                        ) : null}
 
-                          {moreOpenId === lead.id ? (
-                            <div className={`absolute right-0 z-50 mt-2 w-28 rounded-md p-2 ${isLightTheme ? "border border-black/10 bg-white shadow-lg" : "border border-white/10 bg-black/90"}`}>
-                              <button
-                                type="button"
-                                className={isLightTheme ? "w-full rounded p-2 text-left text-sm text-slate-800 hover:bg-slate-50" : "w-full rounded p-2 text-left text-sm hover:bg-white/5"}
-                                onClick={() => {
-                                  setMoreOpenId(null);
-                                  handleEditLead(lead.id);
-                                }}
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          ) : null}
-                        </div>
+                        {canEditLead ? (
+                          <div className="relative">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setMoreOpenId(moreOpenId === lead.id ? null : lead.id)}
+                              className={isLightTheme ? "px-2 py-2 text-slate-700 hover:bg-slate-100" : "px-2 py-2 text-white/80 hover:bg-white/5"}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+
+                            {moreOpenId === lead.id ? (
+                              <div className={`absolute right-0 z-50 mt-2 w-28 rounded-md p-2 ${isLightTheme ? "border border-black/10 bg-white shadow-lg" : "border border-white/10 bg-black/90"}`}>
+                                <button
+                                  type="button"
+                                  className={isLightTheme ? "w-full rounded p-2 text-left text-sm text-slate-800 hover:bg-slate-50" : "w-full rounded p-2 text-left text-sm hover:bg-white/5"}
+                                  onClick={() => {
+                                    setMoreOpenId(null);
+                                    handleEditLead(lead.id);
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   ))}
@@ -949,7 +969,7 @@ function ManageLeads({
                 <div className="font-medium text-white">
                   {`${leadPendingDelete.fname || ""} ${leadPendingDelete.lname || ""}`.trim() || "Unnamed lead"}
                 </div>
-                <div className="text-white/60">{leadPendingDelete.email || leadPendingDelete.mobile || "-"}</div>
+                <div className="text-white/60">{leadPendingDelete.email || (canViewLeadPhone ? leadPendingDelete.mobile : "Restricted") || "-"}</div>
               </div>
             ) : null
           }
@@ -1000,7 +1020,7 @@ function ManageLeads({
 
               <div className={dialogFieldClassName}>
                 <Label className={dialogLabelClassName}>Mobile</Label>
-                <div className={dialogValueClassName}>{selectedLead?.mobile || "-"}</div>
+                <div className={dialogValueClassName}>{canViewLeadPhone ? selectedLead?.mobile || "-" : selectedLead?.mobile_masked || "Restricted"}</div>
               </div>
 
               <div className={dialogFieldClassName}>
@@ -1099,21 +1119,23 @@ function ManageLeads({
               >
                 Close
               </Button>
-              <Button
-                type="button"
-                className="gold-btn"
-                onClick={() => {
-                  setViewDialogOpen(false);
-                  handleEditLead(selectedLead?.id);
-                }}
-              >
-                Edit
-              </Button>
+              {canEditLead ? (
+                <Button
+                  type="button"
+                  className="gold-btn"
+                  onClick={() => {
+                    setViewDialogOpen(false);
+                    handleEditLead(selectedLead?.id);
+                  }}
+                >
+                  Edit
+                </Button>
+              ) : null}
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <Dialog open={editDialogOpen && canEditLead} onOpenChange={setEditDialogOpen}>
           <DialogContent className={dialogClassName}>
             <DialogHeader>
               <DialogTitle className={`text-base font-semibold md:text-lg ${isLightTheme ? "text-slate-900" : "text-white"}`}>Edit Lead</DialogTitle>

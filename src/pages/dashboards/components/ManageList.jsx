@@ -12,8 +12,9 @@ import {
 } from '../../../components/ui/dialog'
 import { Trash2, Users } from 'lucide-react'
 import LISTS from '../../../services/listService'
-import ADMIN from '../../../services/adminService'
+import AUTH from '../../../services/authService'
 import { useToast } from '../../../hooks/use-toast'
+import usePermissions from '../../../hooks/usePermissions'
 
 function ManageList({
   lists: initialLists = [],
@@ -24,6 +25,11 @@ function ManageList({
   onViewLeads
 }) {
   const { toast } = useToast()
+  const { hasPermission } = usePermissions()
+  const canCreateList = hasPermission('canCreateList')
+  const canEditList = hasPermission('canEditList')
+  const canDeleteList = hasPermission('canDeleteList')
+  const canCreateLead = hasPermission('canCreateLead')
   const [lists, setLists] = useState([])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -75,13 +81,13 @@ function ManageList({
     const fetchUsers = async () => {
       setUsersLoading(true)
       try {
-        const response = await ADMIN.FETCH_USERS()
+        if (!canCreateList) {
+          setUsers([])
+          return
+        }
+        const response = await AUTH.GET_ASSIGNABLE_USERS()
         if (response && response.status === 200) {
-          // Filter users with roles: manager, l1, l2
-          const filteredUsers = response.data.data.filter(u =>
-            ['manager', 'l1', 'l2'].includes(u.role)
-          )
-          setUsers(filteredUsers)
+          setUsers(response.data.data || [])
         }
       } catch (err) {
         console.error('Failed to fetch users:', err)
@@ -90,7 +96,7 @@ function ManageList({
       }
     }
     fetchUsers()
-  }, [])
+  }, [canCreateList])
 
   useEffect(() => {
     if (initialLists && initialLists.length) {
@@ -264,22 +270,26 @@ function ManageList({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold text-[#D4AF37]">Manage Lists</h1>
-          <Button
-            onClick={() => setShowCreate(true)}
-            className="gold-btn gold-shine flex items-center gap-2 px-4 py-2 text-sm"
-          >
-            + Create List
-          </Button>
+          {canCreateList ? (
+            <Button
+              onClick={() => setShowCreate(true)}
+              className="gold-btn gold-shine flex items-center gap-2 px-4 py-2 text-sm"
+            >
+              + Create List
+            </Button>
+          ) : null}
         </div>
       </div>
 
       <div className="relative">
-        <button
-          onClick={onAddLeadClick}
-          className="gold-btn gold-shine absolute right-0 top-[-70px] flex items-center gap-2 px-4 py-2 text-sm"
-        >
-          + Add Lead
-        </button>
+        {canCreateLead ? (
+          <button
+            onClick={onAddLeadClick}
+            className="gold-btn gold-shine absolute right-0 top-[-70px] flex items-center gap-2 px-4 py-2 text-sm"
+          >
+            + Add Lead
+          </button>
+        ) : null}
       </div>
 
       {/* Search + sort */}
@@ -326,21 +336,25 @@ function ManageList({
               className="rounded-2xl border border-white/10 bg-black/40 p-5 shadow-md hover:shadow-2xl hover:border-[#D4AF37]/40 transition-all duration-300 ease-out transform hover:-translate-y-2 flex flex-col items-center text-center"
             >
               <div className="mb-2 flex w-full items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => openEdit(l)}
-                  className="text-sm text-[#D4AF37]/90 hover:text-[#D4AF37]"
-                >
-                  <span className="underline">Edit</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openDeleteDialog(l)}
-                  className="inline-flex items-center gap-1 text-sm text-red-300/90 transition-colors hover:text-red-200"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>Delete</span>
-                </button>
+                {canEditList ? (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(l)}
+                    className="text-sm text-[#D4AF37]/90 hover:text-[#D4AF37]"
+                  >
+                    <span className="underline">Edit</span>
+                  </button>
+                ) : null}
+                {canDeleteList ? (
+                  <button
+                    type="button"
+                    onClick={() => openDeleteDialog(l)}
+                    className="inline-flex items-center gap-1 text-sm text-red-300/90 transition-colors hover:text-red-200"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>Delete</span>
+                  </button>
+                ) : null}
               </div>
 
               {/* Title */}
@@ -400,7 +414,7 @@ function ManageList({
       <Dialog
         open={showCreate}
         onOpenChange={(open) => {
-          if (open) setShowCreate(true)
+          if (open && canCreateList) setShowCreate(true)
         }}
       >
         <DialogContent
@@ -491,7 +505,7 @@ function ManageList({
 
       {/* Edit List Dialog */}
       <Dialog
-        open={editDialog.open}
+        open={editDialog.open && canEditList}
         onOpenChange={(open) =>
           setEditDialog((prev) => ({ ...prev, open }))
         }

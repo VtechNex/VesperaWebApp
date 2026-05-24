@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/button'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import ADMIN from '../../../services/adminService'
 import { useToast } from '../../../hooks/use-toast'
+import RoleBadge from '../../../components/RoleBadge'
 
 function DarkSelect({ className = '', children, ...props }) {
   return (
@@ -41,12 +42,16 @@ export default function ManageUsers() {
     username: '',
     email: '',
     password: '',
-    role: 'manager',
+    role: 'L2',
+    isActive: true,
   })
   const [updateUser, setUpdateUser] = useState({
+    firstName: '',
+    lastName: '',
     username: '',
     email: '',
-    role: 'manager',
+    role: 'L2',
+    is_active: true,
   })
 
   useEffect(() => {
@@ -61,12 +66,10 @@ export default function ManageUsers() {
 
   const stats = useMemo(() => {
     const total = users.length
-    const admins = users.filter((user) => user.role === 'admin').length
-    const owners = users.filter((user) => user.role === 'owner').length
-    const managers = users.filter((user) => user.role === 'manager').length
-    const l1 = users.filter((user) => user.role === 'l1').length
-    const l2 = users.filter((user) => user.role === 'l2').length
-    return { total, admins, owners, managers, l1, l2 }
+    const admins = users.filter((user) => user.role === 'MAIN_ADMIN').length
+    const l1 = users.filter((user) => user.role === 'L1').length
+    const l2 = users.filter((user) => user.role === 'L2').length
+    return { total, admins, l1, l2 }
   }, [users])
 
   const filteredUsers = useMemo(() => {
@@ -84,11 +87,9 @@ export default function ManageUsers() {
   }, [roleFilter, search, users])
 
   const roleLabel = (role, fallback) => {
-    if (role === 'admin') return 'Admin'
-    if (role === 'owner') return 'Account Owner'
-    if (role === 'manager') return 'Manager'
-    if (role === 'l1') return 'L1 User'
-    if (role === 'l2') return 'L2 User'
+    if (role === 'MAIN_ADMIN') return 'Main Admin'
+    if (role === 'L1') return 'L1 User'
+    if (role === 'L2') return 'L2 User'
     return fallback || 'User'
   }
 
@@ -99,7 +100,8 @@ export default function ManageUsers() {
       username: '',
       email: '',
       password: '',
-      role: 'manager',
+      role: 'L2',
+      isActive: true,
     })
   }
 
@@ -169,9 +171,12 @@ export default function ManageUsers() {
   const handleUpdateClick = () => {
     if (!selectedUser) return
     setUpdateUser({
+      firstName: selectedUser.first_name || '',
+      lastName: selectedUser.last_name || '',
       username: selectedUser.username || '',
       email: selectedUser.email || '',
-      role: selectedUser.role || 'manager',
+      role: selectedUser.role || 'L2',
+      is_active: selectedUser.is_active ?? true,
     })
     setIsUpdateDialogOpen(true)
     setContextMenu(null)
@@ -220,9 +225,7 @@ export default function ManageUsers() {
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] md:text-xs text-white/70">
           <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">Number of users: <span className="text-gold font-semibold">{stats.total}</span></div>
-          <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">Admins: <span className="text-gold font-semibold">{stats.admins}</span></div>
-          <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">Owners: <span className="text-gold font-semibold">{stats.owners}</span></div>
-          <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">Managers: <span className="text-gold font-semibold">{stats.managers}</span></div>
+          <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">Main Admin: <span className="text-gold font-semibold">{stats.admins}</span></div>
           <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">L1: <span className="text-gold font-semibold">{stats.l1}</span></div>
           <div className="px-3 py-1.5 rounded-full border border-white/15 bg-black/40">L2: <span className="text-gold font-semibold">{stats.l2}</span></div>
         </div>
@@ -236,11 +239,9 @@ export default function ManageUsers() {
           <span className="text-white/60">Filter by role:</span>
           <DarkSelect value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} className="min-w-[160px]">
             <option value="all">-- All Roles --</option>
-            <option value="admin">Admin</option>
-            <option value="owner">Account Owner</option>
-            <option value="manager">Manager</option>
-            <option value="l1">L1 User</option>
-            <option value="l2">L2 User</option>
+            <option value="MAIN_ADMIN">Main Admin</option>
+            <option value="L1">L1 User</option>
+            <option value="L2">L2 User</option>
           </DarkSelect>
         </div>
       </div>
@@ -278,7 +279,7 @@ export default function ManageUsers() {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap align-top">{user.username}</td>
                     <td className="px-3 py-2 whitespace-nowrap align-top">{user.email}</td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top">{roleLabel(user.role)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap align-top"><RoleBadge role={user.role} /></td>
                     <td className="px-3 py-2 whitespace-nowrap align-top">
                       <span className={`px-2 py-1 rounded-full text-[9px] ${user.is_active ? 'bg-green-500/15 text-green-300' : 'bg-red-500/15 text-red-300'}`}>
                         {user.is_active ? 'Active' : 'Inactive'}
@@ -300,6 +301,16 @@ export default function ManageUsers() {
             Fill in the details below to create a new user account.
           </DialogDescription>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-1">First Name</label>
+                <Input value={newUser.firstName} onChange={(event) => setNewUser({ ...newUser, firstName: event.target.value })} placeholder="Enter first name" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-1">Last Name</label>
+                <Input value={newUser.lastName} onChange={(event) => setNewUser({ ...newUser, lastName: event.target.value })} placeholder="Enter last name" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Username</label>
               <Input value={newUser.username} onChange={(event) => setNewUser({ ...newUser, username: event.target.value })} placeholder="Enter username" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
@@ -315,13 +326,15 @@ export default function ManageUsers() {
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Role</label>
               <DarkSelect value={newUser.role} onChange={(event) => setNewUser({ ...newUser, role: event.target.value })} className="w-full">
-                <option value="admin">Admin</option>
-                <option value="owner">Account Owner</option>
-                <option value="manager">Manager</option>
-                <option value="l1">L1 User</option>
-                <option value="l2">L2 User</option>
+                <option value="MAIN_ADMIN">Main Admin</option>
+                <option value="L1">L1 User</option>
+                <option value="L2">L2 User</option>
               </DarkSelect>
             </div>
+            <label className="flex items-center gap-2 text-xs text-white/80">
+              <input type="checkbox" checked={newUser.isActive} onChange={(event) => setNewUser({ ...newUser, isActive: event.target.checked })} />
+              Active user
+            </label>
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button onClick={() => setIsDialogOpen(false)} variant="outline" className="text-xs md:text-sm">Cancel</Button>
@@ -337,6 +350,16 @@ export default function ManageUsers() {
             Update user information for {selectedUser?.username}
           </DialogDescription>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-1">First Name</label>
+                <Input value={updateUser.firstName} onChange={(event) => setUpdateUser({ ...updateUser, firstName: event.target.value })} placeholder="Enter first name" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-white/80 mb-1">Last Name</label>
+                <Input value={updateUser.lastName} onChange={(event) => setUpdateUser({ ...updateUser, lastName: event.target.value })} placeholder="Enter last name" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
+              </div>
+            </div>
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Username</label>
               <Input value={updateUser.username} onChange={(event) => setUpdateUser({ ...updateUser, username: event.target.value })} placeholder="Enter username" className="bg-black/40 border-white/20 text-xs md:text-sm text-white" />
@@ -348,13 +371,15 @@ export default function ManageUsers() {
             <div>
               <label className="block text-xs font-medium text-white/80 mb-1">Role</label>
               <DarkSelect value={updateUser.role} onChange={(event) => setUpdateUser({ ...updateUser, role: event.target.value })} className="w-full">
-                <option value="admin">Admin</option>
-                <option value="owner">Account Owner</option>
-                <option value="manager">Manager</option>
-                <option value="l1">L1 User</option>
-                <option value="l2">L2 User</option>
+                <option value="MAIN_ADMIN">Main Admin</option>
+                <option value="L1">L1 User</option>
+                <option value="L2">L2 User</option>
               </DarkSelect>
             </div>
+            <label className="flex items-center gap-2 text-xs text-white/80">
+              <input type="checkbox" checked={Boolean(updateUser.is_active)} onChange={(event) => setUpdateUser({ ...updateUser, is_active: event.target.checked })} />
+              Active user
+            </label>
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button onClick={() => setIsUpdateDialogOpen(false)} variant="outline" className="text-xs md:text-sm">Cancel</Button>
