@@ -52,7 +52,7 @@ function mapPropertyToForm(property) {
   };
 }
 
-export default function ManagePropertiesMedia() {
+export default function ManagePropertiesMedia({ theme = "dark" }) {
   const { toast } = useToast();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -63,6 +63,7 @@ export default function ManagePropertiesMedia() {
   const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const isLightTheme = theme === "light";
 
   const propertyCategory = useMemo(() => getPropertyCategory(formData.type), [formData.type]);
 
@@ -229,8 +230,9 @@ export default function ManagePropertiesMedia() {
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0B0B0B] p-6 space-y-6">
+    <div className={`rounded-2xl p-6 space-y-6 ${isLightTheme ? "border border-black/10 bg-white shadow-[0_18px_50px_-30px_rgba(15,23,42,0.22)]" : "border border-white/10 bg-[#0B0B0B]"}`}>
       <Header
+        isLightTheme={isLightTheme}
         showForm={showForm}
         toggle={() => {
           if (showForm) cancelEdit();
@@ -240,6 +242,7 @@ export default function ManagePropertiesMedia() {
 
       {showForm ? (
         <PropertyForm
+          isLightTheme={isLightTheme}
           formData={formData}
           errors={errors}
           category={propertyCategory}
@@ -254,11 +257,11 @@ export default function ManagePropertiesMedia() {
       ) : null}
 
       {loading && properties.length === 0 ? (
-        <div className="py-8 text-white/60">Loading properties...</div>
+        <div className={isLightTheme ? "py-8 text-slate-500" : "py-8 text-white/60"}>Loading properties...</div>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {properties.map((property) => (
-            <PropertyCard key={property.id} property={property} onEdit={handleEdit} onDelete={setDeleteTarget} />
+            <PropertyCard key={property.id} isLightTheme={isLightTheme} property={property} onEdit={handleEdit} onDelete={setDeleteTarget} />
           ))}
         </div>
       )}
@@ -289,10 +292,10 @@ export default function ManagePropertiesMedia() {
   );
 }
 
-function Header({ showForm, toggle }) {
+function Header({ showForm, toggle, isLightTheme }) {
   return (
-    <div className="flex items-center justify-between border-b border-white/10 pb-6">
-      <h2 className="flex items-center gap-2 text-xl font-semibold text-[#D4AF37]">
+    <div className={`flex items-center justify-between pb-6 ${isLightTheme ? "border-b border-black/10" : "border-b border-white/10"}`}>
+      <h2 className={`flex items-center gap-2 text-xl font-semibold ${isLightTheme ? "text-[#B68A17]" : "text-[#D4AF37]"}`}>
         <Building2 size={20} />
         Property Portfolio Manager
       </h2>
@@ -310,12 +313,16 @@ function FieldError({ message }) {
   return <p className="mt-1 text-xs text-red-300">{message}</p>;
 }
 
-function Field({ label, error, children, hint }) {
+function Field({ label, error, children, hint, isLightTheme }) {
+  const themedChild = React.isValidElement(children)
+    ? React.cloneElement(children, { isLightTheme })
+    : children;
+
   return (
     <div>
-      <label className="mb-1 block text-sm text-white/75">{label}</label>
-      {children}
-      {hint ? <p className="mt-1 text-xs text-white/45">{hint}</p> : null}
+      <label className={`mb-1 block text-sm ${isLightTheme ? "text-slate-600" : "text-white/75"}`}>{label}</label>
+      {themedChild}
+      {hint ? <p className={`mt-1 text-xs ${isLightTheme ? "text-slate-400" : "text-white/45"}`}>{hint}</p> : null}
       <FieldError message={error} />
     </div>
   );
@@ -332,26 +339,27 @@ function PropertyForm({
   onFileChange,
   onSubmit,
   onCancel,
+  isLightTheme,
 }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="grid grid-cols-1 gap-4 rounded-xl border border-white/10 bg-white/5 p-6 md:grid-cols-2"
+      className={`grid grid-cols-1 gap-4 rounded-xl p-6 md:grid-cols-2 ${isLightTheme ? "border border-black/10 bg-[#fcfaf5]" : "border border-white/10 bg-white/5"}`}
     >
-      <Field label="Property Title" error={errors.title}>
-        <Input name="title" value={formData.title} onChange={onFieldChange} placeholder="Enter property title" />
+      <Field label="Property Title" error={errors.title} isLightTheme={isLightTheme}>
+        <Input isLightTheme={isLightTheme} name="title" value={formData.title} onChange={onFieldChange} placeholder="Enter property title" />
       </Field>
 
-      <Field label="Location" error={errors.location}>
-        <Input name="location" value={formData.location} onChange={onFieldChange} placeholder="Enter property location" />
+      <Field label="Location" error={errors.location} isLightTheme={isLightTheme}>
+        <Input isLightTheme={isLightTheme} name="location" value={formData.location} onChange={onFieldChange} placeholder="Enter property location" />
       </Field>
 
-      <Field label="Price" error={errors.price}>
-        <Input type="number" min="0" name="price" value={formData.price} onChange={onFieldChange} placeholder="Price (INR)" />
+      <Field label="Price" error={errors.price} isLightTheme={isLightTheme}>
+        <Input isLightTheme={isLightTheme} type="number" min="0" name="price" value={formData.price} onChange={onFieldChange} placeholder="Price (INR)" />
       </Field>
 
-      <Field label="Property Type" error={errors.type}>
-        <Select name="type" value={formData.type} onChange={onFieldChange}>
+      <Field label="Property Type" error={errors.type} isLightTheme={isLightTheme}>
+        <Select isLightTheme={isLightTheme} name="type" value={formData.type} onChange={onFieldChange}>
           {PROPERTY_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -360,16 +368,16 @@ function PropertyForm({
         </Select>
       </Field>
 
-      <div className="md:col-span-2 rounded-2xl border border-white/10 bg-black/30 p-4 transition-all duration-200">
+      <div className={`md:col-span-2 rounded-2xl p-4 transition-all duration-200 ${isLightTheme ? "border border-black/10 bg-white" : "border border-white/10 bg-black/30"}`}>
         <div className="mb-4">
-          <h3 className="text-base font-semibold text-white">Property Details</h3>
-          <p className="text-sm text-white/55">Fields update automatically based on the selected property type.</p>
+          <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Property Details</h3>
+          <p className={`text-sm ${isLightTheme ? "text-slate-500" : "text-white/55"}`}>Fields update automatically based on the selected property type.</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {category === "residential" ? (
             <>
-              <Field label="Rooms / BHK" error={errors["propertyDetails.rooms"]}>
+              <Field label="Rooms / BHK" error={errors["propertyDetails.rooms"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -378,7 +386,7 @@ function PropertyForm({
                   placeholder="Example: 2"
                 />
               </Field>
-              <Field label="Washrooms" error={errors["propertyDetails.washrooms"]}>
+              <Field label="Washrooms" error={errors["propertyDetails.washrooms"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -387,7 +395,7 @@ function PropertyForm({
                   placeholder="Example: 2"
                 />
               </Field>
-              <Field label="Carpet Area" error={errors["propertyDetails.carpetArea"]}>
+              <Field label="Carpet Area" error={errors["propertyDetails.carpetArea"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -396,7 +404,7 @@ function PropertyForm({
                   placeholder="Example: 850"
                 />
               </Field>
-              <Field label="Built-up Area" error={errors["propertyDetails.builtUpArea"]}>
+              <Field label="Built-up Area" error={errors["propertyDetails.builtUpArea"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -405,7 +413,7 @@ function PropertyForm({
                   placeholder="Optional built-up area"
                 />
               </Field>
-              <Field label="Floor" error={errors["propertyDetails.floor"]}>
+              <Field label="Floor" error={errors["propertyDetails.floor"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -414,7 +422,7 @@ function PropertyForm({
                   placeholder="Optional floor number"
                 />
               </Field>
-              <Field label="Total Floors" error={errors["propertyDetails.totalFloors"]}>
+              <Field label="Total Floors" error={errors["propertyDetails.totalFloors"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -428,7 +436,7 @@ function PropertyForm({
 
           {category === "commercial" ? (
             <>
-              <Field label="Sqft" error={errors["propertyDetails.sqft"]} hint="Example: 1200 Sqft">
+              <Field label="Sqft" error={errors["propertyDetails.sqft"]} hint="Example: 1200 Sqft" isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -437,7 +445,7 @@ function PropertyForm({
                   placeholder="Example: 1200 Sqft"
                 />
               </Field>
-              <Field label="Floor" error={errors["propertyDetails.floor"]}>
+              <Field label="Floor" error={errors["propertyDetails.floor"]} isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -446,7 +454,7 @@ function PropertyForm({
                   placeholder="Optional floor number"
                 />
               </Field>
-              <Field label="Washroom Available" error={errors["propertyDetails.washroomAvailable"]}>
+              <Field label="Washroom Available" error={errors["propertyDetails.washroomAvailable"]} isLightTheme={isLightTheme}>
                 <Select
                   value={formData.propertyDetails.washroomAvailable}
                   onChange={(event) => onDetailChange("washroomAvailable", event.target.value)}
@@ -458,7 +466,7 @@ function PropertyForm({
                   ))}
                 </Select>
               </Field>
-              <Field label="Furnishing Status" error={errors["propertyDetails.furnishingStatus"]}>
+              <Field label="Furnishing Status" error={errors["propertyDetails.furnishingStatus"]} isLightTheme={isLightTheme}>
                 <Select
                   value={formData.propertyDetails.furnishingStatus}
                   onChange={(event) => onDetailChange("furnishingStatus", event.target.value)}
@@ -475,7 +483,7 @@ function PropertyForm({
 
           {category === "land" ? (
             <>
-              <Field label="Land Area" error={errors["propertyDetails.landArea"]} hint="Example: 1 Acre, 5 Guntha">
+              <Field label="Land Area" error={errors["propertyDetails.landArea"]} hint="Example: 1 Acre, 5 Guntha" isLightTheme={isLightTheme}>
                 <Input
                   type="number"
                   min="0"
@@ -484,7 +492,7 @@ function PropertyForm({
                   placeholder="Example: 1 Acre, 5 Guntha"
                 />
               </Field>
-              <Field label="Area Unit" error={errors["propertyDetails.areaUnit"]}>
+              <Field label="Area Unit" error={errors["propertyDetails.areaUnit"]} isLightTheme={isLightTheme}>
                 <Select value={formData.propertyDetails.areaUnit} onChange={(event) => onDetailChange("areaUnit", event.target.value)}>
                   {LAND_AREA_UNITS.map((unit) => (
                     <option key={unit} value={unit}>
@@ -493,7 +501,7 @@ function PropertyForm({
                   ))}
                 </Select>
               </Field>
-              <Field label="Road Touch" error={errors["propertyDetails.roadTouch"]}>
+              <Field label="Road Touch" error={errors["propertyDetails.roadTouch"]} isLightTheme={isLightTheme}>
                 <Select value={formData.propertyDetails.roadTouch} onChange={(event) => onDetailChange("roadTouch", event.target.value)}>
                   {YES_NO_OPTIONS.map((option) => (
                     <option key={option.value || "empty"} value={option.value}>
@@ -502,7 +510,7 @@ function PropertyForm({
                   ))}
                 </Select>
               </Field>
-              <Field label="NA Plot" error={errors["propertyDetails.naPlot"]}>
+              <Field label="NA Plot" error={errors["propertyDetails.naPlot"]} isLightTheme={isLightTheme}>
                 <Select value={formData.propertyDetails.naPlot} onChange={(event) => onDetailChange("naPlot", event.target.value)}>
                   {YES_NO_OPTIONS.map((option) => (
                     <option key={option.value || "empty"} value={option.value}>
@@ -516,33 +524,33 @@ function PropertyForm({
         </div>
       </div>
 
-      <Field label="Tags" error={errors.tags}>
-        <Input name="tags" value={formData.tags} onChange={onFieldChange} placeholder="Tags (comma separated)" />
+      <Field label="Tags" error={errors.tags} isLightTheme={isLightTheme}>
+        <Input isLightTheme={isLightTheme} name="tags" value={formData.tags} onChange={onFieldChange} placeholder="Tags (comma separated)" />
       </Field>
 
       <div className="flex items-center gap-2 pt-7">
         <input type="checkbox" name="sale" checked={formData.sale} onChange={onFieldChange} />
-        <label className="text-sm text-white/70">Available for Sale (uncheck for Rent)</label>
+        <label className={`text-sm ${isLightTheme ? "text-slate-600" : "text-white/70"}`}>Available for Sale (uncheck for Rent)</label>
       </div>
 
-      <Field label="Description" error={errors.description}>
+      <Field label="Description" error={errors.description} isLightTheme={isLightTheme}>
         <textarea
           name="description"
           value={formData.description}
           onChange={onFieldChange}
           placeholder="Enter property description"
-          className="min-h-[100px] w-full rounded bg-black p-3 text-sm text-white border border-white/10"
+          className={`min-h-[100px] w-full rounded border p-3 text-sm ${isLightTheme ? "border-black/10 bg-white text-slate-900" : "border-white/10 bg-black text-white"}`}
         />
       </Field>
 
       <div className="md:col-span-2">
-        <label className="mb-1 block text-sm text-white/75">Upload Property Images</label>
+        <label className={`mb-1 block text-sm ${isLightTheme ? "text-slate-600" : "text-white/75"}`}>Upload Property Images</label>
         <input
           type="file"
           multiple
           accept="image/*"
           onChange={onFileChange}
-          className="w-full rounded border border-white/10 bg-black p-2 text-sm text-white"
+          className={`w-full rounded border p-2 text-sm ${isLightTheme ? "border-black/10 bg-white text-slate-900" : "border-white/10 bg-black text-white"}`}
         />
       </div>
 
@@ -550,7 +558,7 @@ function PropertyForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded border border-white/20 px-4 py-2 text-white/80 hover:bg-white/10"
+          className={`rounded border px-4 py-2 ${isLightTheme ? "border-black/10 text-slate-700 hover:bg-slate-50" : "border-white/20 text-white/80 hover:bg-white/10"}`}
         >
           Cancel
         </button>
@@ -563,16 +571,16 @@ function PropertyForm({
   );
 }
 
-function PropertyCard({ property, onEdit, onDelete }) {
+function PropertyCard({ property, onEdit, onDelete, isLightTheme }) {
   const summary = summarizePropertyDetails(property);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-black transition hover:border-[#D4AF37]/40">
+    <div className={`overflow-hidden rounded-xl transition ${isLightTheme ? "border border-black/10 bg-white shadow-[0_18px_50px_-30px_rgba(15,23,42,0.18)] hover:border-[#D4AF37]/35" : "border border-white/10 bg-black hover:border-[#D4AF37]/40"}`}>
       <img src={property.images?.[0] || ""} alt={property.title} className="h-48 w-full object-cover" />
       <div className="space-y-2 p-4">
         <h3 className="truncate font-bold text-[#D4AF37]">{property.title}</h3>
-        <p className="text-xs text-white/60">{property.location}</p>
-        <p className="text-sm font-semibold">
+        <p className={`text-xs ${isLightTheme ? "text-slate-500" : "text-white/60"}`}>{property.location}</p>
+        <p className={`text-sm font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>
           Rs {Number(property.price || 0).toLocaleString("en-IN")}
           {property.sale ? "" : " / month"}
         </p>
@@ -591,12 +599,12 @@ function PropertyCard({ property, onEdit, onDelete }) {
   );
 }
 
-const Input = ({ className = "", ...props }) => (
-  <input {...props} className={`h-11 rounded border border-white/10 bg-black px-3 text-sm text-white ${className}`} />
+const Input = ({ className = "", isLightTheme = false, ...props }) => (
+  <input {...props} className={`h-11 rounded border px-3 text-sm ${isLightTheme ? "border-black/10 bg-white text-slate-900 placeholder:text-slate-400" : "border-white/10 bg-black text-white"} ${className}`} />
 );
 
-const Select = ({ children, className = "", ...props }) => (
-  <select {...props} className={`h-11 rounded border border-white/10 bg-black px-3 text-sm text-white ${className}`}>
+const Select = ({ children, className = "", isLightTheme = false, ...props }) => (
+  <select {...props} className={`h-11 rounded border px-3 text-sm ${isLightTheme ? "border-black/10 bg-white text-slate-900" : "border-white/10 bg-black text-white"} ${className}`}>
     {children}
   </select>
 );

@@ -1280,7 +1280,7 @@ export default function Admin() {
             {tab === 'settings-user' && <div className="admin-panel-page"><UserProfileSettings /></div>}
 
             {/* === NEW: PROPERTIES MEDIA TAB === */}
-            {tab === 'manage-properties' && <div className="admin-panel-page"><ManagePropertiesMedia /></div>}
+            {tab === 'manage-properties' && <div className="admin-panel-page"><ManagePropertiesMedia theme={dashboardTheme} /></div>}
 
             {/* === SETTINGS: COMPANY PROFILE TAB === */}
             {tab === 'settings-company' && <div className="admin-panel-page"><CompanyProfileSettings /></div>}
