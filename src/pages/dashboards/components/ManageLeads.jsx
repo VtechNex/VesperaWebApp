@@ -386,6 +386,9 @@ function ManageLeads({
   const detailDialogClassName = isLightTheme
     ? "w-[min(1100px,calc(100vw-2rem))] max-h-[min(90vh,860px)] overflow-hidden rounded-[28px] border border-black/10 bg-[linear-gradient(180deg,#fffdfa_0%,#fff7e7_100%)] p-0 text-slate-900 shadow-[0_30px_120px_-42px_rgba(15,23,42,0.4)]"
     : "w-[min(1100px,calc(100vw-2rem))] max-h-[min(90vh,860px)] overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(12,12,12,0.98)_0%,rgba(7,7,7,0.98)_100%)] p-0 text-white shadow-[0_30px_120px_-42px_rgba(0,0,0,0.9)]";
+  const editDialogClassName = isLightTheme
+    ? "w-[min(1160px,calc(100vw-2rem))] max-h-[min(92vh,920px)] overflow-hidden rounded-[28px] border border-black/10 bg-[linear-gradient(180deg,#fffdfa_0%,#fff7e7_100%)] p-0 text-slate-900 shadow-[0_32px_120px_-42px_rgba(15,23,42,0.42)]"
+    : "w-[min(1160px,calc(100vw-2rem))] max-h-[min(92vh,920px)] overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(12,12,12,0.99)_0%,rgba(6,6,6,0.99)_100%)] p-0 text-white shadow-[0_32px_120px_-42px_rgba(0,0,0,0.92)]";
   const dialogLabelClassName = isLightTheme
     ? "text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
     : "text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55";
@@ -417,6 +420,24 @@ function ManageLeads({
   const detailTagClassName = isLightTheme
     ? "rounded-full border border-[#d4af37]/35 bg-[#fff7df] px-3 py-1 text-xs font-medium text-[#7a5c00]"
     : "rounded-full border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-3 py-1 text-xs font-medium text-[#f4dd96]";
+  const editInputShellClassName = isLightTheme
+    ? "mt-3 flex h-12 items-center rounded-2xl border border-black/10 bg-white px-4 shadow-sm transition focus-within:border-[#D4AF37]/50 focus-within:ring-4 focus-within:ring-[#D4AF37]/10"
+    : "mt-3 flex h-12 items-center rounded-2xl border border-white/10 bg-black/40 px-4 transition focus-within:border-[#D4AF37]/40 focus-within:ring-4 focus-within:ring-[#D4AF37]/10";
+  const editTextAreaShellClassName = isLightTheme
+    ? "mt-3 rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition focus-within:border-[#D4AF37]/50 focus-within:ring-4 focus-within:ring-[#D4AF37]/10"
+    : "mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 transition focus-within:border-[#D4AF37]/40 focus-within:ring-4 focus-within:ring-[#D4AF37]/10";
+  const editControlClassName = isLightTheme
+    ? "w-full border-0 bg-transparent p-0 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+    : "w-full border-0 bg-transparent p-0 text-sm text-white outline-none placeholder:text-white/35";
+  const editCheckboxCardClassName = isLightTheme
+    ? "flex items-start gap-3 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm"
+    : "flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4";
+  const editTagChooserClassName = isLightTheme
+    ? "mt-3 grid max-h-56 grid-cols-1 gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-4 shadow-sm md:grid-cols-2"
+    : "mt-3 grid max-h-56 grid-cols-1 gap-3 overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-4 md:grid-cols-2";
+  const editTagItemClassName = isLightTheme
+    ? "flex items-center gap-3 rounded-xl border border-black/10 bg-[#fffdf8] px-3 py-3 text-sm text-slate-700 transition hover:border-[#D4AF37]/35 hover:bg-[#fff7e7]"
+    : "flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm text-white/85 transition hover:border-[#D4AF37]/30 hover:bg-[#D4AF37]/[0.06]";
 
   const getPotentialClass = (potential) => {
     if (!potential) return "bg-white/5 text-white";
@@ -1275,280 +1296,392 @@ function ManageLeads({
         </Dialog>
 
         <Dialog open={editDialogOpen && canEditLead} onOpenChange={setEditDialogOpen}>
-          <DialogContent className={dialogClassName}>
-            <DialogHeader>
-              <DialogTitle className={`text-base font-semibold md:text-lg ${isLightTheme ? "text-slate-900" : "text-white"}`}>Edit Lead</DialogTitle>
-            </DialogHeader>
-
+          <DialogContent className={editDialogClassName}>
             {selectedLead ? (
-              <div className={`mt-4 space-y-4 text-sm ${isLightTheme ? "text-slate-800" : "text-white/90"}`}>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className={dialogLabelClassName}>First Name</Label>
-                    <input
-                      className={dialogInputClassName}
-                      value={selectedLead.fname || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, fname: event.target.value }))
-                      }
-                    />
+              <div className="overflow-y-auto max-h-[min(92vh,920px)]">
+                <div className={isLightTheme ? "border-b border-black/10 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.22),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,247,231,0.96))] p-6 md:p-8" : "border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.18),transparent_35%),radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_30%),linear-gradient(135deg,rgba(20,20,20,0.98),rgba(8,8,8,0.98))] p-6 md:p-8"}>
+                  <DialogHeader className="mb-0">
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-4">
+                        <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] ${isLightTheme ? "border-black/10 bg-white/75 text-slate-500" : "border-white/10 bg-white/[0.05] text-white/55"}`}>
+                          <FileText className="h-3.5 w-3.5" />
+                          Edit Lead
+                        </div>
+
+                        <div className="space-y-2">
+                          <DialogTitle className={`text-2xl font-semibold tracking-tight md:text-3xl ${isLightTheme ? "text-slate-900" : "text-white"}`}>
+                            {`${selectedLead.fname || ""} ${selectedLead.lname || ""}`.trim() || "Lead record"}
+                          </DialogTitle>
+                          <p className={isLightTheme ? "text-sm text-slate-600" : "text-sm text-white/60"}>
+                            Update lead identity, ownership, qualification, and follow-up details from one clean workspace.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[380px]">
+                        <div className={detailMetricClassName}>
+                          <div className={detailMiniLabelClassName}>List</div>
+                          <div className={detailMiniValueClassName}>{getListName(selectedLead?.list_id) || "-"}</div>
+                        </div>
+                        <div className={detailMetricClassName}>
+                          <div className={detailMiniLabelClassName}>Stage</div>
+                          <div className={detailMiniValueClassName}>{selectedLead?.lead_stage || selectedLead?.leadStage || "Not set"}</div>
+                        </div>
+                        <div className={detailMetricClassName}>
+                          <div className={detailMiniLabelClassName}>Potential</div>
+                          <div className={detailMiniValueClassName}>{selectedLead?.lead_potential || selectedLead?.leadPotential || "Not set"}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </DialogHeader>
+                </div>
+
+                <div className={`grid grid-cols-1 gap-5 p-6 md:p-8 xl:grid-cols-[1.1fr_0.9fr] ${isLightTheme ? "text-slate-900" : "text-white/90"}`}>
+                  <div className="space-y-5">
+                    <section className={detailSectionClassName}>
+                      <div className="mb-5 flex items-center gap-3">
+                        <div className={detailIconWrapClassName}>
+                          <CircleUserRound className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Contact details</h3>
+                          <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Keep the lead identity and primary contact information accurate.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>First name</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              className={editControlClassName}
+                              value={selectedLead.fname || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, fname: event.target.value }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Last name</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              className={editControlClassName}
+                              value={selectedLead.lname || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, lname: event.target.value }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Mobile</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              className={editControlClassName}
+                              value={selectedLead.mobile || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, mobile: event.target.value }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Email</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              className={editControlClassName}
+                              value={selectedLead.email || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, email: event.target.value }))
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 ${dialogFieldClassName}`}>
+                        <Label className={dialogLabelClassName}>Organization</Label>
+                        <div className={editInputShellClassName}>
+                          <input
+                            className={editControlClassName}
+                            value={selectedLead.organization || ""}
+                            onChange={(event) =>
+                              setSelectedLead((prev) => ({ ...prev, organization: event.target.value }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className={detailSectionClassName}>
+                      <div className="mb-5 flex items-center gap-3">
+                        <div className={detailIconWrapClassName}>
+                          <BadgeCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Qualification and ownership</h3>
+                          <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Define where the lead sits in your pipeline and who owns it.</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Product group</Label>
+                          <div className={editInputShellClassName}>
+                            <select
+                              className={editControlClassName}
+                              value={selectedLead.product_group || selectedLead.productGroup || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, product_group: event.target.value }))
+                              }
+                            >
+                              <option value="">Select</option>
+                              {productGroups.map((group) => (
+                                <option key={group.id} value={group.name}>
+                                  {group.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Customer group</Label>
+                          <div className={editInputShellClassName}>
+                            <select
+                              className={editControlClassName}
+                              value={selectedLead.customer_group || selectedLead.customerGroup || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, customer_group: event.target.value }))
+                              }
+                            >
+                              <option value="">Select</option>
+                              {customerGroups.map((group) => (
+                                <option key={group.id} value={group.name}>
+                                  {group.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Assign to</Label>
+                          <div className={editInputShellClassName}>
+                            <select
+                              className={editControlClassName}
+                              value={selectedLead.assigned_to || selectedLead.assignedTo || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, assigned_to: event.target.value }))
+                              }
+                            >
+                              <option value="">Unassigned</option>
+                              {assigneeList.map((user) => (
+                                <option key={user.id} value={user.id}>
+                                  {user.username || user.email}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Deal size (INR)</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              type="number"
+                              className={editControlClassName}
+                              value={selectedLead.deal_size || selectedLead.dealSize || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, deal_size: event.target.value }))
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Lead potential</Label>
+                          <div className={editInputShellClassName}>
+                            <select
+                              className={editControlClassName}
+                              value={selectedLead.lead_potential || selectedLead.leadPotential || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, lead_potential: event.target.value }))
+                              }
+                            >
+                              <option value="">Select</option>
+                              <option value="Low">Low</option>
+                              <option value="Medium">Medium</option>
+                              <option value="High">High</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Lead stage</Label>
+                          <div className={editInputShellClassName}>
+                            <select
+                              className={editControlClassName}
+                              value={selectedLead.lead_stage || selectedLead.leadStage || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({ ...prev, lead_stage: event.target.value }))
+                              }
+                            >
+                              <option value="">Select</option>
+                              <option value="Open">Open</option>
+                              <option value="Contacted">Contacted</option>
+                              <option value="Qualified">Qualified</option>
+                              <option value="Lost">Lost</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
                   </div>
-                  <div>
-                    <Label className={dialogLabelClassName}>Last Name</Label>
-                    <input
-                      className={dialogInputClassName}
-                      value={selectedLead.lname || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, lname: event.target.value }))
-                      }
-                    />
+
+                  <div className="space-y-5">
+                    <section className={detailSectionClassName}>
+                      <div className="mb-5 flex items-center gap-3">
+                        <div className={detailIconWrapClassName}>
+                          <CalendarClock className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Follow-up setup</h3>
+                          <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Plan reminders, cadence, and context for the next touchpoint.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Next follow-up</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              type="datetime-local"
+                              className={editControlClassName}
+                              value={
+                                selectedLead.followUpDate
+                                  ? `${selectedLead.followUpDate}T${selectedLead.followUpTime || "00:00"}`
+                                  : ""
+                              }
+                              onChange={(event) => {
+                                const [date, time] = event.target.value.split("T");
+                                setSelectedLead((prev) => ({
+                                  ...prev,
+                                  followUpDate: date,
+                                  followUpTime: time || "00:00",
+                                }));
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className={editCheckboxCardClassName}>
+                          <input
+                            id="repeatFollowUp"
+                            type="checkbox"
+                            checked={selectedLead.repeatFollowUp || false}
+                            onChange={(event) =>
+                              setSelectedLead((prev) => ({
+                                ...prev,
+                                repeatFollowUp: event.target.checked,
+                              }))
+                            }
+                            className="mt-1 h-4 w-4 accent-[#D4AF37]"
+                          />
+                          <label htmlFor="repeatFollowUp" className="space-y-1">
+                            <div className={isLightTheme ? "text-sm font-medium text-slate-900" : "text-sm font-medium text-white"}>Repeat follow-up</div>
+                            <div className={isLightTheme ? "text-xs text-slate-500" : "text-xs text-white/50"}>
+                              Turn this on when the lead should stay in a recurring follow-up cycle.
+                            </div>
+                          </label>
+                        </div>
+
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Repeat interval</Label>
+                          <div className={editInputShellClassName}>
+                            <input
+                              className={editControlClassName}
+                              value={selectedLead.repeatInterval || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({
+                                  ...prev,
+                                  repeatInterval: event.target.value,
+                                }))
+                              }
+                              placeholder="e.g., 7 days"
+                            />
+                          </div>
+                        </div>
+
+                        <div className={dialogFieldClassName}>
+                          <Label className={dialogLabelClassName}>Follow-up notes</Label>
+                          <div className={editTextAreaShellClassName}>
+                            <textarea
+                              className={`${editControlClassName} min-h-[140px] resize-none`}
+                              value={selectedLead.followUpNotes || ""}
+                              onChange={(event) =>
+                                setSelectedLead((prev) => ({
+                                  ...prev,
+                                  followUpNotes: event.target.value,
+                                }))
+                              }
+                              placeholder="Add any context for the next outreach."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className={detailSectionClassName}>
+                      <div className="mb-5 flex items-center gap-3">
+                        <div className={detailIconWrapClassName}>
+                          <Tags className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Tags and notes</h3>
+                          <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Use tags for segmentation and notes for internal team context.</p>
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Tags</Label>
+                        <div className={editTagChooserClassName}>
+                          {tagsList.map((tag) => (
+                            <label key={tag.id} className={editTagItemClassName}>
+                              <input
+                                type="checkbox"
+                                checked={(selectedLead.tags || []).includes(tag.id)}
+                                onChange={() => {
+                                  setSelectedLead((prev) => {
+                                    const alreadySelected = (prev.tags || []).includes(tag.id);
+                                    const nextTags = alreadySelected
+                                      ? prev.tags.filter((value) => value !== tag.id)
+                                      : [...(prev.tags || []), tag.id];
+                                    return { ...prev, tags: nextTags };
+                                  });
+                                }}
+                                className="h-4 w-4 accent-[#D4AF37]"
+                              />
+                              <span>{tag.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={`mt-4 ${dialogFieldClassName}`}>
+                        <Label className={dialogLabelClassName}>Notes</Label>
+                        <div className={editTextAreaShellClassName}>
+                          <textarea
+                            className={`${editControlClassName} min-h-[140px] resize-none`}
+                            value={selectedLead.notes || ""}
+                            onChange={(event) =>
+                              setSelectedLead((prev) => ({ ...prev, notes: event.target.value }))
+                            }
+                            placeholder="Add internal notes for your team."
+                          />
+                        </div>
+                      </div>
+                    </section>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className={dialogLabelClassName}>Mobile</Label>
-                    <input
-                      className={dialogInputClassName}
-                      value={selectedLead.mobile || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, mobile: event.target.value }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className={dialogLabelClassName}>Email</Label>
-                    <input
-                      className={dialogInputClassName}
-                      value={selectedLead.email || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, email: event.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className={dialogLabelClassName}>Organization</Label>
-                  <input
-                    className={dialogInputClassName}
-                    value={selectedLead.organization || ""}
-                    onChange={(event) =>
-                      setSelectedLead((prev) => ({ ...prev, organization: event.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className={dialogLabelClassName}>Product Group</Label>
-                    <select
-                      className={dialogInputClassName}
-                      value={selectedLead.product_group || selectedLead.productGroup || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, product_group: event.target.value }))
-                      }
-                    >
-                      <option value="">Select</option>
-                      {productGroups.map((group) => (
-                        <option key={group.id} value={group.name}>
-                          {group.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label className={dialogLabelClassName}>Customer Group</Label>
-                    <select
-                      className={dialogInputClassName}
-                      value={selectedLead.customer_group || selectedLead.customerGroup || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, customer_group: event.target.value }))
-                      }
-                    >
-                      <option value="">Select</option>
-                      {customerGroups.map((group) => (
-                        <option key={group.id} value={group.name}>
-                          {group.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className={dialogLabelClassName}>Assign to</Label>
-                    <select
-                      className={dialogInputClassName}
-                      value={selectedLead.assigned_to || selectedLead.assignedTo || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, assigned_to: event.target.value }))
-                      }
-                    >
-                      <option value="">Unassigned</option>
-                      {assigneeList.map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.username || user.email}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <Label className={dialogLabelClassName}>Next Follow-up</Label>
-                    <input
-                      type="datetime-local"
-                      className={dialogInputClassName}
-                      value={
-                        selectedLead.followUpDate
-                          ? `${selectedLead.followUpDate}T${selectedLead.followUpTime || "00:00"}`
-                          : ""
-                      }
-                      onChange={(event) => {
-                        const [date, time] = event.target.value.split("T");
-                        setSelectedLead((prev) => ({
-                          ...prev,
-                          followUpDate: date,
-                          followUpTime: time || "00:00",
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="mt-2 flex items-center gap-2">
-                    <input
-                      id="repeatFollowUp"
-                      type="checkbox"
-                      checked={selectedLead.repeatFollowUp || false}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({
-                          ...prev,
-                          repeatFollowUp: event.target.checked,
-                        }))
-                      }
-                      className="h-4 w-4"
-                    />
-                    <label htmlFor="repeatFollowUp" className={isLightTheme ? "text-sm text-slate-600" : "text-sm text-gray-200"}>
-                      Repeat follow-up
-                    </label>
-                  </div>
-
-                  <div>
-                    <Label className={dialogLabelClassName}>Repeat interval</Label>
-                    <input
-                      className={dialogInputClassName}
-                      value={selectedLead.repeatInterval || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({
-                          ...prev,
-                          repeatInterval: event.target.value,
-                        }))
-                      }
-                      placeholder="e.g., 7 days"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <Label className={dialogLabelClassName}>Follow-up Notes</Label>
-                  <textarea
-                    className={`${dialogInputClassName} h-24 resize-none`}
-                    value={selectedLead.followUpNotes || ""}
-                    onChange={(event) =>
-                      setSelectedLead((prev) => ({
-                        ...prev,
-                        followUpNotes: event.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div>
-                  <Label className={dialogLabelClassName}>Tags</Label>
-                  <div className={`mt-2 grid max-h-40 grid-cols-1 gap-2 overflow-y-auto rounded-xl p-3 md:grid-cols-2 ${isLightTheme ? "border border-black/10 bg-[#fffaf0]" : "border border-white/5"}`}>
-                    {tagsList.map((tag) => (
-                      <label key={tag.id} className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={(selectedLead.tags || []).includes(tag.id)}
-                          onChange={() => {
-                            setSelectedLead((prev) => {
-                              const alreadySelected = (prev.tags || []).includes(tag.id);
-                              const nextTags = alreadySelected
-                                ? prev.tags.filter((value) => value !== tag.id)
-                                : [...(prev.tags || []), tag.id];
-                              return { ...prev, tags: nextTags };
-                            });
-                          }}
-                        />
-                        <span>{tag.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div>
-                    <Label className={dialogLabelClassName}>Deal Size (INR)</Label>
-                    <input
-                      type="number"
-                      className={dialogInputClassName}
-                      value={selectedLead.deal_size || selectedLead.dealSize || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, deal_size: event.target.value }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label className={dialogLabelClassName}>Lead Potential</Label>
-                    <select
-                      className={dialogInputClassName}
-                      value={selectedLead.lead_potential || selectedLead.leadPotential || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, lead_potential: event.target.value }))
-                      }
-                    >
-                      <option value="">Select</option>
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                  </div>
-                  <div>
-                    <Label className={dialogLabelClassName}>Lead Stage</Label>
-                    <select
-                      className={dialogInputClassName}
-                      value={selectedLead.lead_stage || selectedLead.leadStage || ""}
-                      onChange={(event) =>
-                        setSelectedLead((prev) => ({ ...prev, lead_stage: event.target.value }))
-                      }
-                    >
-                      <option value="">Select</option>
-                      <option value="Open">Open</option>
-                      <option value="Contacted">Contacted</option>
-                      <option value="Qualified">Qualified</option>
-                      <option value="Lost">Lost</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <Label className={dialogLabelClassName}>Notes</Label>
-                  <textarea
-                    className={dialogInputClassName}
-                    value={selectedLead.notes || ""}
-                    onChange={(event) =>
-                      setSelectedLead((prev) => ({ ...prev, notes: event.target.value }))
-                    }
-                  />
-                </div>
-              </div>
-            ) : null}
-
-            <DialogFooter className="flex justify-end gap-3">
+                <DialogFooter className={`flex flex-col-reverse gap-3 border-t px-6 py-5 md:flex-row md:justify-end md:px-8 ${isLightTheme ? "border-black/10 bg-white/70" : "border-white/10 bg-black/40"}`}>
               <Button
                 type="button"
                 variant="outline"
@@ -1561,9 +1694,11 @@ function ManageLeads({
                 Cancel
               </Button>
               <Button type="button" className="gold-btn" onClick={handleSaveEdit} disabled={dialogSaving}>
-                {dialogSaving ? "Saving..." : "Save"}
+                {dialogSaving ? "Saving..." : "Save Changes"}
               </Button>
-            </DialogFooter>
+                </DialogFooter>
+              </div>
+            ) : null}
           </DialogContent>
         </Dialog>
       </div>
