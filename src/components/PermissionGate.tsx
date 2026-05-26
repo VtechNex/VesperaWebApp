@@ -1,10 +1,17 @@
 import React from "react";
 import usePermissions from "../hooks/usePermissions";
 
-export default function PermissionGate({ permission, fallback = null, children }) {
+type PermissionGateProps = {
+  permission?: string;
+  fallback?: React.ReactNode;
+  children: React.ReactNode;
+};
+
+export default function PermissionGate({ permission, fallback = null, children }: PermissionGateProps) {
   const { hasPermission, isAuthLoading, isRoleLoading } = usePermissions();
+  const canUsePermission = hasPermission as unknown as ((permissionName: string) => boolean) | undefined;
 
   if (isAuthLoading || isRoleLoading) return null;
-  if (permission && !hasPermission(permission)) return fallback;
+  if (permission && !canUsePermission?.(permission)) return fallback;
   return children;
 }

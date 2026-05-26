@@ -377,7 +377,7 @@ function DashboardMetricChart({ title, rows, total, theme = 'dark' }) {
 export default function Admin() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { logout, user } = useAuth()
+  const { logout, user, authLoading } = useAuth()
   const { hasPermission } = usePermissions()
   const canViewLists = hasPermission('canViewLists')
   const canCreateLead = hasPermission('canCreateLead')
@@ -412,6 +412,7 @@ export default function Admin() {
   const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [dashboardError, setDashboardError] = useState('')
   const [hasLoadedDashboardOnce, setHasLoadedDashboardOnce] = useState(false)
+  const [dashboardLoadTimedOut, setDashboardLoadTimedOut] = useState(false)
 
   const [globalLoading, setGlobalLoading] = useState(false)
   const [leadRefreshKey, setLeadRefreshKey] = useState(0)
@@ -469,6 +470,33 @@ export default function Admin() {
   useEffect(() => {
     loadDashboard()
   }, [])
+
+  useEffect(() => {
+    if (!loadingDashboard) {
+      setDashboardLoadTimedOut(false)
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDashboardLoadTimedOut(true)
+    }, 8000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadingDashboard])
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("[AdminDashboard]", {
+        authLoading,
+        user,
+        loadingDashboard,
+        dashboardError,
+        dashboardLoadTimedOut,
+        listsCount: lists.length,
+        leadsCount: leads.length,
+      })
+    }
+  }, [authLoading, dashboardError, dashboardLoadTimedOut, leads.length, lists.length, loadingDashboard, user])
 
   useEffect(() => {
     localStorage.setItem('vespera_admin_tab', tab)
@@ -1017,7 +1045,7 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {showDashboardSkeleton ? (
+                {showDashboardSkeleton && !dashboardLoadTimedOut ? (
                   <div className="space-y-6">
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                       {Array.from({ length: 4 }).map((_, index) => (
@@ -1034,6 +1062,14 @@ export default function Admin() {
                       <DashboardChartSkeleton />
                     </div>
                   </div>
+                ) : showDashboardSkeleton && dashboardLoadTimedOut ? (
+                  <ErrorState
+                    title="Dashboard is taking longer than expected."
+                    description="Your dashboard data is still loading. You can retry the request or log out and sign in again."
+                    onRetry={loadDashboard}
+                    secondaryActionLabel="Logout"
+                    onSecondaryAction={onLogout}
+                  />
                 ) : dashboardError && !lists.length && !leads.length ? (
                   <ErrorState
                     title="Unable to load dashboard"

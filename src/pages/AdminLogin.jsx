@@ -56,7 +56,9 @@ export default function AdminLogin() {
         description: "Welcome to Vespera Admin Panel",
       });
 
-      navigate(redirectPath, { replace: true });
+      if (location.pathname !== redirectPath) {
+        navigate(redirectPath, { replace: true });
+      }
     } catch (loginError) {
       toast({
         title: "Login failed",

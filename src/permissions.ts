@@ -4,6 +4,8 @@ export const ROLES = {
   L2: "L2",
 } as const;
 
+export type Role = (typeof ROLES)[keyof typeof ROLES];
+
 export const PERMISSION_KEYS = [
   "canViewDashboard",
   "canViewLeads",
@@ -25,6 +27,8 @@ export const PERMISSION_KEYS = [
   "canManageLeadStages",
   "canManagePropertyMedia",
 ] as const;
+
+export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
 export const PERMISSIONS_MATRIX = {
   [ROLES.MAIN_ADMIN]: {
@@ -112,12 +116,19 @@ export function normalizeRole(rawRole?: string | null) {
 }
 
 export function getPermissionsForRole(rawRole?: string | null) {
-  return PERMISSIONS_MATRIX[normalizeRole(rawRole)];
+  const normalizedRole = normalizeRole(rawRole) as Role;
+  return PERMISSIONS_MATRIX[normalizedRole];
 }
 
 export function hasPermission(rawRole: string | null | undefined, permissionName: string) {
   const permissions = getPermissionsForRole(rawRole);
-  return Boolean(permissions?.[permissionName as keyof typeof permissions]);
+  if (!permissions) {
+    return false;
+  }
+  if (!Object.prototype.hasOwnProperty.call(permissions, permissionName)) {
+    return false;
+  }
+  return Boolean(permissions[permissionName as keyof typeof permissions]);
 }
 
 export function getRoleLabel(rawRole?: string | null) {

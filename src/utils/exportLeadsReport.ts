@@ -33,19 +33,59 @@ const COLORS = {
 
 const DATE_FORMAT = "dd mmm yyyy";
 
-function safeValue(value) {
+type LeadRecord = Record<string, any>;
+type ListRecord = {
+  id?: unknown;
+  name?: unknown;
+};
+type ReportRow = {
+  serialNumber: number;
+  leadName: string;
+  phone: string;
+  email: string;
+  organization: string;
+  listName: string;
+  stage: string;
+  followUpStatus: string;
+  dealStatus: string;
+  createdDate: Date | null;
+  updatedDate: Date | null;
+  assignedTo: string;
+  notes: string;
+};
+type AnalyticsMap = Map<string, number>;
+type ReportAnalytics = {
+  totalLeads: number;
+  openLeads: number;
+  hotLeads: number;
+  workingLeads: number;
+  dealClosed: number;
+  followUpPending: number;
+  byStatus: AnalyticsMap;
+  byList: AnalyticsMap;
+  byDealStage: AnalyticsMap;
+  byAssignee: AnalyticsMap;
+};
+
+function safeValue(value: unknown) {
   if (value == null) return "-";
   const stringValue = String(value).trim();
   return stringValue ? stringValue : "-";
 }
 
-function getDateValue(value) {
+function getDateValue(value: unknown) {
   if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value !== "string" && typeof value !== "number") {
+    return null;
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatDisplayDateTime(value) {
+function formatDisplayDateTime(value: unknown) {
   const parsed = getDateValue(value);
   if (!parsed) return safeValue(value);
 
@@ -63,7 +103,7 @@ function formatDisplayDateTime(value) {
   return `${datePart} | ${timePart}`;
 }
 
-function formatFilenameDate(value) {
+function formatFilenameDate(value: unknown) {
   const parsed = getDateValue(value) || new Date();
   const year = parsed.getFullYear();
   const month = String(parsed.getMonth() + 1).padStart(2, "0");
@@ -71,64 +111,64 @@ function formatFilenameDate(value) {
   return `${year}-${month}-${day}`;
 }
 
-function normalizeStage(lead) {
+function normalizeStage(lead: LeadRecord) {
   return safeValue(lead?.lead_stage || lead?.leadStage || lead?.stage);
 }
 
-function normalizeDealStatus(lead) {
+function normalizeDealStatus(lead: LeadRecord) {
   return safeValue(
     lead?.deal_status || lead?.dealStatus || lead?.lead_potential || lead?.leadPotential
   );
 }
 
-function normalizeAssignedTo(lead) {
+function normalizeAssignedTo(lead: LeadRecord) {
   return safeValue(lead?.assignee_name || lead?.assignee_email || lead?.assigned_to || lead?.assignedTo);
 }
 
-function normalizeFollowUpStatus(lead) {
+function normalizeFollowUpStatus(lead: LeadRecord) {
   if (lead?.do_not_follow_up || lead?.doNotFollowUp) return "Do Not Follow-Up";
   if (lead?.repeat_follow_up || lead?.repeatFollowUp) return "Repeating";
   if (lead?.follow_up_date || lead?.followUpDate) return "Scheduled";
   return "-";
 }
 
-function buildLeadName(lead) {
+function buildLeadName(lead: LeadRecord) {
   return safeValue(`${lead?.fname || ""} ${lead?.lname || ""}`.trim());
 }
 
-function buildListNameMap(lists = []) {
+function buildListNameMap(lists: ListRecord[] = []) {
   return new Map(
     lists.map((list) => [String(list?.id), safeValue(list?.name)])
   );
 }
 
-function getListName(lead, listNameMap) {
+function getListName(lead: LeadRecord, listNameMap: Map<string, string>) {
   return listNameMap.get(String(lead?.list_id)) || "-";
 }
 
-function isHotLead(lead, listName) {
+function isHotLead(lead: LeadRecord, listName: string) {
   const potential = String(lead?.lead_potential || lead?.leadPotential || "").toLowerCase();
   return potential === "high" || String(listName).toLowerCase().includes("hot");
 }
 
-function isClosedLead(lead) {
+function isClosedLead(lead: LeadRecord) {
   const value = `${lead?.deal_status || lead?.dealStatus || ""} ${lead?.lead_stage || lead?.leadStage || lead?.stage || ""}`.toLowerCase();
   return ["closed", "won", "deal done"].some((keyword) => value.includes(keyword));
 }
 
-function isOpenLead(lead) {
+function isOpenLead(lead: LeadRecord) {
   const stage = String(lead?.lead_stage || lead?.leadStage || lead?.stage || "").toLowerCase();
   return stage === "open" || stage.includes("open");
 }
 
-function isWorkingLead(lead) {
+function isWorkingLead(lead: LeadRecord) {
   const stage = String(lead?.lead_stage || lead?.leadStage || lead?.stage || "").toLowerCase();
   return ["contacted", "qualified", "follow up", "follow-up", "working"].some((keyword) =>
     stage.includes(keyword)
   );
 }
 
-function isFollowUpPending(lead) {
+function isFollowUpPending(lead: LeadRecord) {
   return Boolean(
     (lead?.follow_up_date || lead?.followUpDate) &&
       !(lead?.do_not_follow_up || lead?.doNotFollowUp) &&
@@ -145,7 +185,7 @@ function createBorder(color = COLORS.line) {
   };
 }
 
-function mergeAndStyle(sheet, range, value, style = {}) {
+function mergeAndStyle(sheet: any, range: string, value: unknown, style = {}) {
   sheet.mergeCells(range);
   const cell = sheet.getCell(range.split(":")[0]);
   cell.value = value;
@@ -153,9 +193,9 @@ function mergeAndStyle(sheet, range, value, style = {}) {
   return cell;
 }
 
-function buildReportRows(leads = [], listNameMap) {
-  const rows = [];
-  const analytics = {
+function buildReportRows(leads: LeadRecord[] = [], listNameMap: Map<string, string>) {
+  const rows: ReportRow[] = [];
+  const analytics: ReportAnalytics = {
     totalLeads: leads.length,
     openLeads: 0,
     hotLeads: 0,
@@ -207,7 +247,7 @@ function buildReportRows(leads = [], listNameMap) {
   return { rows, analytics };
 }
 
-function setColumnWidths(sheet, rows) {
+function setColumnWidths(sheet: any, rows: ReportRow[]) {
   const widths = [
     8,
     26,
@@ -246,7 +286,7 @@ function setColumnWidths(sheet, rows) {
   sheet.columns = widths.map((width) => ({ width }));
 }
 
-function addDataTable(sheet, rows) {
+function addDataTable(sheet: any, rows: ReportRow[]) {
   const headerRowNumber = 1;
   const headerRow = sheet.getRow(headerRowNumber);
   headerRow.values = DATA_HEADERS;
@@ -315,7 +355,7 @@ function addDataTable(sheet, rows) {
   };
 }
 
-function addAnalyticsTable(sheet, startRow, startColumn, title, entries) {
+function addAnalyticsTable(sheet: any, startRow: number, startColumn: number, title: string, entries: Array<[string, number]>) {
   const titleCell = sheet.getCell(startRow, startColumn);
   titleCell.value = title;
   titleCell.font = { bold: true, size: 12, color: { argb: COLORS.gold } };
@@ -356,11 +396,11 @@ function addAnalyticsTable(sheet, startRow, startColumn, title, entries) {
   });
 }
 
-function mapToSortedEntries(sourceMap) {
+function mapToSortedEntries(sourceMap: AnalyticsMap) {
   return [...sourceMap.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
 }
 
-function addAnalyticsSheet(workbook, analytics, generatedOn, appliedFilter) {
+function addAnalyticsSheet(workbook: any, analytics: ReportAnalytics, generatedOn: string, appliedFilter: string) {
   const sheet = workbook.addWorksheet("Analytics Summary", {
     views: [{ showGridLines: false, zoomScale: 90 }],
   });
@@ -402,7 +442,7 @@ function addAnalyticsSheet(workbook, analytics, generatedOn, appliedFilter) {
   ];
 }
 
-function triggerWorkbookDownload(buffer, filename) {
+function triggerWorkbookDownload(buffer: BlobPart, filename: string) {
   const blob = new Blob(
     [buffer],
     { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }
@@ -420,6 +460,11 @@ export async function exportLeadsReport({
   lists = [],
   generatedBy = "Admin",
   appliedFilter = "All Leads",
+}: {
+  leads?: LeadRecord[];
+  lists?: ListRecord[];
+  generatedBy?: string;
+  appliedFilter?: string;
 }) {
   const excelJsModule = await import("exceljs");
   const ExcelJS = excelJsModule?.default || excelJsModule;

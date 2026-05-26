@@ -2,12 +2,19 @@ import React from "react";
 import { LockKeyhole, ShieldAlert } from "lucide-react";
 import { Button } from "./ui/button";
 
+type AccessRestrictedProps = {
+  title?: string;
+  description?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
 export default function AccessRestricted({
   title = "Access Restricted",
   description = "You do not have permission to view this area.",
   actionLabel = "Return to Dashboard",
   onAction,
-}) {
+}: AccessRestrictedProps) {
   return (
     <div className="min-h-[50vh] rounded-3xl border border-[#D4AF37]/15 bg-[radial-gradient(circle_at_top,_rgba(212,175,55,0.12),_transparent_42%),linear-gradient(180deg,#090909_0%,#121212_100%)] p-8 text-white shadow-[0_30px_80px_-40px_rgba(0,0,0,0.75)]">
       <div className="mx-auto flex max-w-2xl flex-col items-center text-center">

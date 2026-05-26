@@ -1,15 +1,29 @@
 import React from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Loading from "./Loading";
 import AccessRestricted from "./AccessRestricted";
+import ErrorState from "./ErrorState";
 
 export default function ProtectedRoute({ children, roles = [], permission, redirectTo = "/admin/login" }) {
   const location = useLocation();
-  const { user, status, hasPermission } = useAuth();
+  const navigate = useNavigate();
+  const { user, authLoading, authError, hasPermission, rehydrate } = useAuth();
 
-  if (status === "loading") {
+  if (authLoading) {
     return <Loading message="Checking your session..." />;
+  }
+
+  if (authError && !user) {
+    return (
+      <div className="mx-auto max-w-2xl p-6">
+        <ErrorState
+          title="We couldn't restore your session"
+          description={authError}
+          onRetry={rehydrate}
+        />
+      </div>
+    );
   }
 
   if (!user) {
@@ -20,7 +34,7 @@ export default function ProtectedRoute({ children, roles = [], permission, redir
     return (
       <AccessRestricted
         description="Your account does not have access to this route."
-        onAction={() => (window.location.href = "/dashboard/admin")}
+        onAction={() => navigate("/dashboard/admin", { replace: true })}
       />
     );
   }
@@ -29,7 +43,7 @@ export default function ProtectedRoute({ children, roles = [], permission, redir
     return (
       <AccessRestricted
         description="Your account does not have permission to access this area."
-        onAction={() => (window.location.href = "/dashboard/admin")}
+        onAction={() => navigate("/dashboard/admin", { replace: true })}
       />
     );
   }

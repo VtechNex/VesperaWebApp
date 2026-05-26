@@ -15,14 +15,18 @@ function createChannel() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [userProfile, setUserProfile] = useState(null);
   const channelRef = useRef(null);
 
-  const performLogout = React.useCallback((sync = true) => {
+  const performLogout = React.useCallback((sync = true, nextAuthError = "") => {
     AUTH.LOGOUT();
     setUser(null);
     setUserProfile(null);
     setStatus("unauthenticated");
+    setAuthError(nextAuthError);
+    setAuthLoading(false);
 
     if (sync) {
       const payload = { type: "logout", at: Date.now() };
@@ -33,12 +37,15 @@ export function AuthProvider({ children }) {
 
   const rehydrate = React.useCallback(async () => {
     setStatus("loading");
+    setAuthLoading(true);
+    setAuthError("");
     const stored = AUTH.USER();
     if (!stored) {
       setUser(null);
       setUserProfile(null);
       setStatus("unauthenticated");
-      return;
+      setAuthLoading(false);
+      return { authenticated: false, reason: "missing-session" };
     }
 
     try {
@@ -49,11 +56,22 @@ export function AuthProvider({ children }) {
         setUser(mergedUser);
         setUserProfile(response.data.data);
         setStatus("authenticated");
+        return { authenticated: true, user: mergedUser };
       } else {
         performLogout(false);
+        return { authenticated: false, reason: "invalid-session-response" };
       }
     } catch (error) {
-      performLogout(false);
+      console.error("Auth rehydrate failed:", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "We could not refresh your session.";
+      performLogout(false, message);
+      return { authenticated: false, reason: "request-failed", error };
+    } finally {
+      setAuthLoading(false);
     }
   }, [performLogout]);
 
@@ -83,6 +101,17 @@ export function AuthProvider({ children }) {
     };
   }, [performLogout, rehydrate]);
 
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log("[AuthContext]", {
+        authLoading,
+        status,
+        user,
+        authError,
+      });
+    }
+  }, [authError, authLoading, status, user]);
+
   const value = useMemo(
     () => ({
       user,
@@ -90,19 +119,25 @@ export function AuthProvider({ children }) {
       userRole: normalizeRole(user?.role),
       permissions: getPermissionsForRole(user?.role),
       status,
-      isAuthLoading: status === "loading",
-      isRoleLoading: status === "loading",
+      authLoading,
+      authError,
+      isAuthLoading: authLoading,
+      isRoleLoading: authLoading,
       isAuthenticated: status === "authenticated",
       hasPermission: (permissionName) => checkPermission(user?.role, permissionName),
       login: async (email, password) => {
         const response = await AUTH.LOGIN(email, password);
-        await rehydrate();
+        const refreshResult = await rehydrate();
+        if (!refreshResult?.authenticated) {
+          throw new Error("Login succeeded, but the session could not be refreshed.");
+        }
         return response;
       },
       logout: () => performLogout(true),
       rehydrate,
+      refreshAuthState: rehydrate,
     }),
-    [performLogout, rehydrate, status, user, userProfile]
+    [authError, authLoading, performLogout, rehydrate, status, user, userProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
