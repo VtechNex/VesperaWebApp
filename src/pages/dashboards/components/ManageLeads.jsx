@@ -16,6 +16,7 @@ import {
   Phone,
   RefreshCw,
   Search,
+  Tags,
   Trash2,
   Users,
 } from "lucide-react";
