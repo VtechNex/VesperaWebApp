@@ -28,6 +28,12 @@ import { Button } from "../../../components/ui/button";
 import { Label } from "../../../components/ui/label";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../../../components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -113,6 +119,53 @@ function sortLeadsNewestFirst(leads = []) {
 
     return String(b?.fname || "").localeCompare(String(a?.fname || ""));
   });
+}
+
+function EditSelect({
+  value,
+  placeholder = "Select",
+  options = [],
+  onChange,
+  shellClassName,
+  triggerClassName,
+  menuClassName,
+  iconClassName,
+}) {
+  const selectedOption = options.find((option) => String(option.value) === String(value));
+  const displayLabel = selectedOption?.label || placeholder;
+
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={shellClassName}>
+          <span className={triggerClassName}>{displayLabel}</span>
+          <ChevronDown className={`${iconClassName} shrink-0`} />
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        sideOffset={10}
+        align="start"
+        className={menuClassName}
+      >
+        {options.map((option) => {
+          const isActive = String(option.value) === String(value);
+
+          return (
+            <DropdownMenuItem
+              key={`${option.value}-${option.label}`}
+              onSelect={() => onChange(option.value)}
+              className={`rounded-xl px-3 py-2.5 text-sm ${
+                isActive ? "bg-[#D4AF37]/12 text-[#f4dd96]" : ""
+              }`}
+            >
+              <span className="truncate">{option.label}</span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function ManageLeads({
@@ -375,6 +428,43 @@ function ManageLeads({
   const showInitialSkeleton = loading && !hasLoadedOnce;
   const showRefreshIndicator = loading && hasLoadedOnce;
   const isLightTheme = theme === "light";
+  const productGroupOptions = useMemo(
+    () => [{ value: "", label: "Select" }, ...productGroups.map((group) => ({ value: group.name, label: group.name }))],
+    [productGroups]
+  );
+  const customerGroupOptions = useMemo(
+    () => [{ value: "", label: "Select" }, ...customerGroups.map((group) => ({ value: group.name, label: group.name }))],
+    [customerGroups]
+  );
+  const assigneeOptions = useMemo(
+    () => [
+      { value: "", label: "Unassigned" },
+      ...assigneeList.map((assignee) => ({
+        value: assignee.id,
+        label: assignee.username || assignee.email || "Unknown user",
+      })),
+    ],
+    [assigneeList]
+  );
+  const leadPotentialOptions = useMemo(
+    () => [
+      { value: "", label: "Select" },
+      { value: "Low", label: "Low" },
+      { value: "Medium", label: "Medium" },
+      { value: "High", label: "High" },
+    ],
+    []
+  );
+  const leadStageOptions = useMemo(
+    () => [
+      { value: "", label: "Select" },
+      { value: "Open", label: "Open" },
+      { value: "Contacted", label: "Contacted" },
+      { value: "Qualified", label: "Qualified" },
+      { value: "Lost", label: "Lost" },
+    ],
+    []
+  );
   const shellClassName = isLightTheme ? "min-h-screen bg-transparent p-6 text-slate-900" : "min-h-screen bg-[#0b0d10] p-6 text-white";
   const subtleTextClassName = isLightTheme ? "text-slate-500" : "text-gray-400";
   const panelClassName = isLightTheme ? "rounded-xl border border-black/10 bg-white shadow-[0_18px_50px_-30px_rgba(15,23,42,0.22)]" : "rounded-xl border border-white/10 bg-black/20";
@@ -438,13 +528,14 @@ function ManageLeads({
   const editControlClassName = isLightTheme
     ? "w-full border-0 bg-transparent p-0 text-sm text-slate-900 outline-none placeholder:text-slate-400"
     : "w-full border-0 bg-transparent p-0 text-sm text-white outline-none placeholder:text-white/35";
-  const editSelectControlClassName = isLightTheme
-    ? "w-full appearance-none border-0 bg-transparent p-0 pr-8 text-sm text-slate-900 outline-none"
-    : "w-full appearance-none border-0 bg-transparent p-0 pr-8 text-sm text-white outline-none";
   const editPickerControlClassName = isLightTheme
     ? "crm-picker w-full border-0 bg-transparent p-0 text-sm text-slate-900 outline-none"
     : "crm-picker w-full border-0 bg-transparent p-0 text-sm text-white outline-none";
   const controlIconClassName = isLightTheme ? "h-4 w-4 text-slate-400" : "h-4 w-4 text-white/45";
+  const editSelectTriggerTextClassName = isLightTheme ? "truncate text-left text-sm text-slate-900" : "truncate text-left text-sm text-white";
+  const editSelectMenuClassName = isLightTheme
+    ? "max-h-72 min-w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto rounded-2xl border border-black/10 bg-white p-2 text-slate-900 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.35)]"
+    : "max-h-72 min-w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111111] p-2 text-white shadow-[0_24px_60px_-24px_rgba(0,0,0,0.85)]";
   const editCheckboxCardClassName = isLightTheme
     ? "flex items-start gap-3 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm"
     : "flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4";
@@ -1444,62 +1535,50 @@ function ManageLeads({
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Product group</Label>
-                          <div className={editSelectShellClassName}>
-                            <select
-                              className={editSelectControlClassName}
+                          <div className="mt-3">
+                            <EditSelect
                               value={selectedLead.product_group || selectedLead.productGroup || ""}
-                              onChange={(event) =>
-                                setSelectedLead((prev) => ({ ...prev, product_group: event.target.value }))
+                              options={productGroupOptions}
+                              onChange={(nextValue) =>
+                                setSelectedLead((prev) => ({ ...prev, product_group: nextValue }))
                               }
-                            >
-                              <option value="">Select</option>
-                              {productGroups.map((group) => (
-                                <option key={group.id} value={group.name}>
-                                  {group.name}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
+                              shellClassName={`${editSelectShellClassName} mt-0 w-full justify-between`}
+                              triggerClassName={editSelectTriggerTextClassName}
+                              menuClassName={editSelectMenuClassName}
+                              iconClassName={controlIconClassName}
+                            />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Customer group</Label>
-                          <div className={editSelectShellClassName}>
-                            <select
-                              className={editSelectControlClassName}
+                          <div className="mt-3">
+                            <EditSelect
                               value={selectedLead.customer_group || selectedLead.customerGroup || ""}
-                              onChange={(event) =>
-                                setSelectedLead((prev) => ({ ...prev, customer_group: event.target.value }))
+                              options={customerGroupOptions}
+                              onChange={(nextValue) =>
+                                setSelectedLead((prev) => ({ ...prev, customer_group: nextValue }))
                               }
-                            >
-                              <option value="">Select</option>
-                              {customerGroups.map((group) => (
-                                <option key={group.id} value={group.name}>
-                                  {group.name}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
+                              shellClassName={`${editSelectShellClassName} mt-0 w-full justify-between`}
+                              triggerClassName={editSelectTriggerTextClassName}
+                              menuClassName={editSelectMenuClassName}
+                              iconClassName={controlIconClassName}
+                            />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Assign to</Label>
-                          <div className={editSelectShellClassName}>
-                            <select
-                              className={editSelectControlClassName}
+                          <div className="mt-3">
+                            <EditSelect
                               value={selectedLead.assigned_to || selectedLead.assignedTo || ""}
-                              onChange={(event) =>
-                                setSelectedLead((prev) => ({ ...prev, assigned_to: event.target.value }))
+                              options={assigneeOptions}
+                              onChange={(nextValue) =>
+                                setSelectedLead((prev) => ({ ...prev, assigned_to: nextValue }))
                               }
-                            >
-                              <option value="">Unassigned</option>
-                              {assigneeList.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                  {user.username || user.email}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
+                              shellClassName={`${editSelectShellClassName} mt-0 w-full justify-between`}
+                              triggerClassName={editSelectTriggerTextClassName}
+                              menuClassName={editSelectMenuClassName}
+                              iconClassName={controlIconClassName}
+                            />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
@@ -1517,39 +1596,34 @@ function ManageLeads({
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Lead potential</Label>
-                          <div className={editSelectShellClassName}>
-                            <select
-                              className={editSelectControlClassName}
+                          <div className="mt-3">
+                            <EditSelect
                               value={selectedLead.lead_potential || selectedLead.leadPotential || ""}
-                              onChange={(event) =>
-                                setSelectedLead((prev) => ({ ...prev, lead_potential: event.target.value }))
+                              options={leadPotentialOptions}
+                              onChange={(nextValue) =>
+                                setSelectedLead((prev) => ({ ...prev, lead_potential: nextValue }))
                               }
-                            >
-                              <option value="">Select</option>
-                              <option value="Low">Low</option>
-                              <option value="Medium">Medium</option>
-                              <option value="High">High</option>
-                            </select>
-                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
+                              shellClassName={`${editSelectShellClassName} mt-0 w-full justify-between`}
+                              triggerClassName={editSelectTriggerTextClassName}
+                              menuClassName={editSelectMenuClassName}
+                              iconClassName={controlIconClassName}
+                            />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Lead stage</Label>
-                          <div className={editSelectShellClassName}>
-                            <select
-                              className={editSelectControlClassName}
+                          <div className="mt-3">
+                            <EditSelect
                               value={selectedLead.lead_stage || selectedLead.leadStage || ""}
-                              onChange={(event) =>
-                                setSelectedLead((prev) => ({ ...prev, lead_stage: event.target.value }))
+                              options={leadStageOptions}
+                              onChange={(nextValue) =>
+                                setSelectedLead((prev) => ({ ...prev, lead_stage: nextValue }))
                               }
-                            >
-                              <option value="">Select</option>
-                              <option value="Open">Open</option>
-                              <option value="Contacted">Contacted</option>
-                              <option value="Qualified">Qualified</option>
-                              <option value="Lost">Lost</option>
-                            </select>
-                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
+                              shellClassName={`${editSelectShellClassName} mt-0 w-full justify-between`}
+                              triggerClassName={editSelectTriggerTextClassName}
+                              menuClassName={editSelectMenuClassName}
+                              iconClassName={controlIconClassName}
+                            />
                           </div>
                         </div>
                       </div>
