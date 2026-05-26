@@ -1,14 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
+  BadgeCheck,
+  Building2,
   Calendar,
+  CalendarClock,
   ChevronDown,
+  CircleUserRound,
+  ClipboardList,
   Download,
   Eye,
+  FileText,
+  Mail,
   MoreVertical,
+  Phone,
   RefreshCw,
   Search,
   Trash2,
+  Users,
 } from "lucide-react";
 
 import { Input } from "../../../components/ui/input";
@@ -374,6 +383,9 @@ function ManageLeads({
   const dialogClassName = isLightTheme
     ? "w-full max-w-2xl rounded-2xl border border-black/10 bg-[#fffdfa] p-6 text-slate-900 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)]"
     : "w-full max-w-2xl rounded-2xl border border-white/10 bg-black/90 p-6 text-white";
+  const detailDialogClassName = isLightTheme
+    ? "w-[min(1100px,calc(100vw-2rem))] max-h-[min(90vh,860px)] overflow-hidden rounded-[28px] border border-black/10 bg-[linear-gradient(180deg,#fffdfa_0%,#fff7e7_100%)] p-0 text-slate-900 shadow-[0_30px_120px_-42px_rgba(15,23,42,0.4)]"
+    : "w-[min(1100px,calc(100vw-2rem))] max-h-[min(90vh,860px)] overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(12,12,12,0.98)_0%,rgba(7,7,7,0.98)_100%)] p-0 text-white shadow-[0_30px_120px_-42px_rgba(0,0,0,0.9)]";
   const dialogLabelClassName = isLightTheme
     ? "text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
     : "text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55";
@@ -387,6 +399,24 @@ function ManageLeads({
   const dialogSecondaryButtonClassName = isLightTheme
     ? "border border-black/10 bg-white text-slate-900 hover:bg-slate-50"
     : "border border-white/15 bg-transparent text-white hover:bg-white/5";
+  const detailSectionClassName = isLightTheme
+    ? "rounded-[24px] border border-black/10 bg-white/80 p-5 shadow-[0_20px_60px_-38px_rgba(15,23,42,0.35)] backdrop-blur"
+    : "rounded-[24px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur";
+  const detailMetricClassName = isLightTheme
+    ? "rounded-2xl border border-black/10 bg-[#fffdf8] px-4 py-4 shadow-sm"
+    : "rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4";
+  const detailMiniLabelClassName = isLightTheme
+    ? "text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500"
+    : "text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45";
+  const detailMiniValueClassName = isLightTheme
+    ? "mt-2 text-sm font-medium text-slate-900"
+    : "mt-2 text-sm font-medium text-white";
+  const detailIconWrapClassName = isLightTheme
+    ? "flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-white text-[#a67c00] shadow-sm"
+    : "flex h-10 w-10 items-center justify-center rounded-2xl border border-[#D4AF37]/20 bg-[#D4AF37]/10 text-[#f1d27a]";
+  const detailTagClassName = isLightTheme
+    ? "rounded-full border border-[#d4af37]/35 bg-[#fff7df] px-3 py-1 text-xs font-medium text-[#7a5c00]"
+    : "rounded-full border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-3 py-1 text-xs font-medium text-[#f4dd96]";
 
   const getPotentialClass = (potential) => {
     if (!potential) return "bg-white/5 text-white";
@@ -981,136 +1011,244 @@ function ManageLeads({
         />
 
         <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-          <DialogContent className={dialogClassName}>
-            <DialogHeader className="flex items-start justify-between">
-              <DialogTitle className={`text-base font-semibold md:text-lg ${isLightTheme ? "text-slate-900" : "text-white"}`}>
-                Lead Details
-              </DialogTitle>
+          <DialogContent className={detailDialogClassName}>
+            <div className="overflow-y-auto max-h-[min(90vh,860px)]">
+              <div className={isLightTheme ? "border-b border-black/10 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.22),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.96),rgba(255,247,231,0.96))] p-6 md:p-8" : "border-b border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.18),transparent_35%),radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent_30%),linear-gradient(135deg,rgba(20,20,20,0.98),rgba(8,8,8,0.98))] p-6 md:p-8"}>
+                <DialogHeader className="mb-0">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-4">
+                      <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] ${isLightTheme ? "border-black/10 bg-white/75 text-slate-500" : "border-white/10 bg-white/[0.05] text-white/55"}`}>
+                        <Eye className="h-3.5 w-3.5" />
+                        Lead Details
+                      </div>
 
-              <div className="flex items-center gap-2">
-                {(selectedLead?.lead_potential || selectedLead?.leadPotential) ? (
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      getPotentialClass(selectedLead?.lead_potential || selectedLead?.leadPotential)
-                    }`}
-                  >
-                    {selectedLead?.lead_potential || selectedLead?.leadPotential}
-                  </span>
-                ) : null}
+                      <div className="space-y-2">
+                        <DialogTitle className={`text-2xl font-semibold tracking-tight md:text-3xl ${isLightTheme ? "text-slate-900" : "text-white"}`}>
+                          {selectedLead ? `${selectedLead.fname || ""} ${selectedLead.lname || ""}`.trim() || "Unnamed lead" : "Lead"}
+                        </DialogTitle>
+                        <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 text-sm ${isLightTheme ? "text-slate-600" : "text-white/65"}`}>
+                          <span className="inline-flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            {selectedLead?.organization || "No organization"}
+                          </span>
+                          <span className="inline-flex items-center gap-2">
+                            <ClipboardList className="h-4 w-4" />
+                            {getListName(selectedLead?.list_id) || "No list"}
+                          </span>
+                          <span className="inline-flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            Created {formatDateOnly(selectedLead?.created_at || selectedLead?.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-                {(selectedLead?.lead_stage || selectedLead?.leadStage) ? (
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      getStageClass(selectedLead?.lead_stage || selectedLead?.leadStage)
-                    }`}
-                  >
-                    {selectedLead?.lead_stage || selectedLead?.leadStage}
-                  </span>
-                ) : null}
-              </div>
-            </DialogHeader>
+                    <div className="flex flex-wrap items-center gap-2 lg:max-w-[40%] lg:justify-end">
+                      {(selectedLead?.lead_potential || selectedLead?.leadPotential) ? (
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            getPotentialClass(selectedLead?.lead_potential || selectedLead?.leadPotential)
+                          }`}
+                        >
+                          {selectedLead?.lead_potential || selectedLead?.leadPotential}
+                        </span>
+                      ) : null}
 
-            <div className={`mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 ${isLightTheme ? "text-slate-900" : "text-white/90"}`}>
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Full name</Label>
-                <div className={dialogValueClassName}>
-                  {selectedLead ? `${selectedLead.fname || ""} ${selectedLead.lname || ""}`.trim() || "-" : "-"}
-                </div>
-              </div>
+                      {(selectedLead?.lead_stage || selectedLead?.leadStage) ? (
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            getStageClass(selectedLead?.lead_stage || selectedLead?.leadStage)
+                          }`}
+                        >
+                          {selectedLead?.lead_stage || selectedLead?.leadStage}
+                        </span>
+                      ) : null}
 
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Mobile</Label>
-                <div className={dialogValueClassName}>{canViewLeadPhone ? selectedLead?.mobile || "-" : selectedLead?.mobile_masked || "Restricted"}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Email</Label>
-                <div className={`${dialogValueClassName} break-all`}>{selectedLead?.email || "-"}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Organization</Label>
-                <div className={dialogValueClassName}>{selectedLead?.organization || "-"}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>List</Label>
-                <div className={dialogValueClassName}>{getListName(selectedLead?.list_id) || "-"}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Created</Label>
-                <div className={dialogValueClassName}>{formatDateTime(selectedLead?.created_at || selectedLead?.createdAt)}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Assigned to</Label>
-                <div className={dialogValueClassName}>
-                  {selectedLead?.assignee_name || selectedLead?.assignee_email || selectedLead?.assigned_to || "-"}
-                </div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Next follow-up</Label>
-                <div className={dialogValueClassName}>
-                  {formatDateTime(selectedLead?.follow_up_date || selectedLead?.followUpDate)}
-                </div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Follow-up status</Label>
-                <div className={dialogValueClassName}>
-                  {selectedLead?.repeat_follow_up || selectedLead?.repeatFollowUp ? "Repeats" : "One-time"}
-                </div>
-              </div>
-
-              <div className={`md:col-span-2 ${dialogFieldClassName}`}>
-                <Label className={dialogLabelClassName}>Follow-up notes</Label>
-                <div className={`${dialogValueClassName} whitespace-pre-wrap`}>
-                  {truncateText(selectedLead?.follow_up_notes || selectedLead?.followUpNotes)}
-                </div>
-              </div>
-
-              <div className={`md:col-span-2 ${dialogFieldClassName}`}>
-                <Label className={dialogLabelClassName}>Follow-ups sent</Label>
-                <div className={dialogValueClassName}>{selectedLead?.follow_up_count ?? selectedLead?.followUpCount ?? 0}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Product Group</Label>
-                <div className={dialogValueClassName}>{selectedLead?.product_group || selectedLead?.productGroup || "-"}</div>
-              </div>
-
-              <div className={dialogFieldClassName}>
-                <Label className={dialogLabelClassName}>Customer Group</Label>
-                <div className={dialogValueClassName}>{selectedLead?.customer_group || selectedLead?.customerGroup || "-"}</div>
-              </div>
-
-              <div className={`md:col-span-2 ${dialogFieldClassName}`}>
-                <Label className={dialogLabelClassName}>Tags</Label>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {selectedLead?.tags?.length ? (
-                    selectedLead.tags.map((tagId) => (
-                      <span
-                        key={tagId}
-                        className={isLightTheme ? "rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs text-slate-700" : "rounded bg-white/10 px-2 py-0.5 text-xs"}
-                      >
-                        {tagsList.find((tag) => tag.id === tagId)?.name || tagId}
+                      <span className={`${isLightTheme ? "border-black/10 bg-white/80 text-slate-700" : "border-white/10 bg-white/[0.05] text-white/75"} inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium`}>
+                        <Users className="h-3.5 w-3.5" />
+                        {selectedLead?.assignee_name || selectedLead?.assignee_email || selectedLead?.assigned_to || "Unassigned"}
                       </span>
-                    ))
-                  ) : (
-                    <div className={dialogValueClassName}>-</div>
-                  )}
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className={detailMetricClassName}>
+                    <div className={detailMiniLabelClassName}>Next follow-up</div>
+                    <div className={detailMiniValueClassName}>
+                      {formatDateTime(selectedLead?.follow_up_date || selectedLead?.followUpDate)}
+                    </div>
+                  </div>
+                  <div className={detailMetricClassName}>
+                    <div className={detailMiniLabelClassName}>Follow-up cadence</div>
+                    <div className={detailMiniValueClassName}>
+                      {selectedLead?.repeat_follow_up || selectedLead?.repeatFollowUp ? "Repeating follow-up" : "One-time follow-up"}
+                    </div>
+                  </div>
+                  <div className={detailMetricClassName}>
+                    <div className={detailMiniLabelClassName}>Follow-ups sent</div>
+                    <div className={detailMiniValueClassName}>
+                      {selectedLead?.follow_up_count ?? selectedLead?.followUpCount ?? 0}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className={`md:col-span-2 ${dialogFieldClassName}`}>
-                <Label className={dialogLabelClassName}>Notes</Label>
-                <div className={`${dialogValueClassName} whitespace-pre-wrap`}>{selectedLead?.notes || "-"}</div>
-              </div>
-            </div>
+              <div className={`grid grid-cols-1 gap-5 p-6 md:p-8 xl:grid-cols-[1.15fr_0.85fr] ${isLightTheme ? "text-slate-900" : "text-white/90"}`}>
+                <div className="space-y-5">
+                  <section className={detailSectionClassName}>
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className={detailIconWrapClassName}>
+                        <CircleUserRound className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Contact information</h3>
+                        <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Core lead details and primary contact channels.</p>
+                      </div>
+                    </div>
 
-            <DialogFooter className="flex justify-end gap-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Full name</Label>
+                        <div className={dialogValueClassName}>
+                          {selectedLead ? `${selectedLead.fname || ""} ${selectedLead.lname || ""}`.trim() || "-" : "-"}
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Organization</Label>
+                        <div className={dialogValueClassName}>{selectedLead?.organization || "-"}</div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Mobile</Label>
+                        <div className={`${dialogValueClassName} inline-flex items-center gap-2`}>
+                          <Phone className="h-4 w-4 opacity-60" />
+                          <span>{canViewLeadPhone ? selectedLead?.mobile || "-" : selectedLead?.mobile_masked || "Restricted"}</span>
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Email</Label>
+                        <div className={`${dialogValueClassName} inline-flex items-center gap-2 break-all`}>
+                          <Mail className="h-4 w-4 shrink-0 opacity-60" />
+                          <span>{selectedLead?.email || "-"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className={detailSectionClassName}>
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className={detailIconWrapClassName}>
+                        <BadgeCheck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Pipeline overview</h3>
+                        <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Assignment, segmentation, and conversion signals.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Assigned to</Label>
+                        <div className={dialogValueClassName}>
+                          {selectedLead?.assignee_name || selectedLead?.assignee_email || selectedLead?.assigned_to || "-"}
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Created</Label>
+                        <div className={`${dialogValueClassName} inline-flex items-center gap-2`}>
+                          <Calendar className="h-4 w-4 opacity-60" />
+                          <span>{formatDateTime(selectedLead?.created_at || selectedLead?.createdAt)}</span>
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Product group</Label>
+                        <div className={dialogValueClassName}>{selectedLead?.product_group || selectedLead?.productGroup || "-"}</div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Customer group</Label>
+                        <div className={dialogValueClassName}>{selectedLead?.customer_group || selectedLead?.customerGroup || "-"}</div>
+                      </div>
+                    </div>
+
+                    <div className={`mt-4 ${dialogFieldClassName}`}>
+                      <Label className={dialogLabelClassName}>Tags</Label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {selectedLead?.tags?.length ? (
+                          selectedLead.tags.map((tagId) => (
+                            <span key={tagId} className={detailTagClassName}>
+                              {tagsList.find((tag) => tag.id === tagId)?.name || tagId}
+                            </span>
+                          ))
+                        ) : (
+                          <div className={dialogValueClassName}>-</div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                <div className="space-y-5">
+                  <section className={detailSectionClassName}>
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className={detailIconWrapClassName}>
+                        <CalendarClock className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Follow-up plan</h3>
+                        <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Upcoming activity and outreach guidance for this lead.</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Next follow-up</Label>
+                        <div className={dialogValueClassName}>
+                          {formatDateTime(selectedLead?.follow_up_date || selectedLead?.followUpDate)}
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Follow-up status</Label>
+                        <div className={dialogValueClassName}>
+                          {selectedLead?.repeat_follow_up || selectedLead?.repeatFollowUp ? "Repeating sequence" : "One-time reminder"}
+                        </div>
+                      </div>
+
+                      <div className={dialogFieldClassName}>
+                        <Label className={dialogLabelClassName}>Follow-up notes</Label>
+                        <div className={`${dialogValueClassName} whitespace-pre-wrap`}>
+                          {selectedLead?.follow_up_notes || selectedLead?.followUpNotes || "-"}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className={detailSectionClassName}>
+                    <div className="mb-5 flex items-center gap-3">
+                      <div className={detailIconWrapClassName}>
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className={`text-base font-semibold ${isLightTheme ? "text-slate-900" : "text-white"}`}>Internal notes</h3>
+                        <p className={isLightTheme ? "text-sm text-slate-500" : "text-sm text-white/55"}>Additional team context saved against this lead.</p>
+                      </div>
+                    </div>
+
+                    <div className={dialogFieldClassName}>
+                      <Label className={dialogLabelClassName}>Notes</Label>
+                      <div className={`${dialogValueClassName} whitespace-pre-wrap`}>{selectedLead?.notes || "-"}</div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <DialogFooter className={`flex flex-col-reverse gap-3 border-t px-6 py-5 md:flex-row md:justify-end md:px-8 ${isLightTheme ? "border-black/10 bg-white/70" : "border-white/10 bg-black/40"}`}>
               <Button
                 type="button"
                 variant="outline"
@@ -1131,7 +1269,8 @@ function ManageLeads({
                   Edit
                 </Button>
               ) : null}
-            </DialogFooter>
+              </DialogFooter>
+            </div>
           </DialogContent>
         </Dialog>
 
