@@ -1,1 +1,0 @@
-import{R as r,j as e}from"./index-DUo07Z88.js";const n=r.forwardRef(({className:s="",...a},t)=>e.jsx("input",{ref:t,className:`border rounded-md px-3 py-2 ${s}`,...a}));n.displayName="Input";function p({className:s="",...a}){return e.jsx("label",{className:`text-sm ${s}`,...a})}export{n as I,p as L};

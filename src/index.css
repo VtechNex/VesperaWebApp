@@ -197,8 +197,24 @@
 /* Custom input fixes and tweaks */
 /* ============================= */
 
-/* Hide calendar and time icons in WebKit browsers (Chrome, Edge, Safari) */
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  display: none;
-  -webkit-appearance: none;
+/* Keep native date/time pickers visible and aligned inside styled inputs */
+.crm-picker {
+  color-scheme: dark;
+}
+
+.crm-picker::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+  cursor: pointer;
+}
+
+.crm-picker::-webkit-date-and-time-value,
+.crm-picker::-webkit-datetime-edit,
+.crm-picker::-webkit-datetime-edit-fields-wrapper,
+.crm-picker::-webkit-datetime-edit-text,
+.crm-picker::-webkit-datetime-edit-month-field,
+.crm-picker::-webkit-datetime-edit-day-field,
+.crm-picker::-webkit-datetime-edit-year-field,
+.crm-picker::-webkit-datetime-edit-hour-field,
+.crm-picker::-webkit-datetime-edit-minute-field {
+  color: inherit;
 }

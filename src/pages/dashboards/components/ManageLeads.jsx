@@ -4,10 +4,12 @@ import {
   BadgeCheck,
   Building2,
   Calendar,
+  CalendarDays,
   CalendarClock,
   ChevronDown,
   CircleUserRound,
   ClipboardList,
+  Clock3,
   Download,
   Eye,
   FileText,
@@ -427,9 +429,22 @@ function ManageLeads({
   const editTextAreaShellClassName = isLightTheme
     ? "mt-3 rounded-2xl border border-black/10 bg-white p-4 shadow-sm transition focus-within:border-[#D4AF37]/50 focus-within:ring-4 focus-within:ring-[#D4AF37]/10"
     : "mt-3 rounded-2xl border border-white/10 bg-black/40 p-4 transition focus-within:border-[#D4AF37]/40 focus-within:ring-4 focus-within:ring-[#D4AF37]/10";
+  const editSelectShellClassName = isLightTheme
+    ? "mt-3 flex h-12 items-center rounded-2xl border border-black/10 bg-white px-4 shadow-sm transition focus-within:border-[#D4AF37]/50 focus-within:ring-4 focus-within:ring-[#D4AF37]/10"
+    : "mt-3 flex h-12 items-center rounded-2xl border border-white/10 bg-black/40 px-4 transition focus-within:border-[#D4AF37]/40 focus-within:ring-4 focus-within:ring-[#D4AF37]/10";
+  const editPickerShellClassName = isLightTheme
+    ? "mt-3 flex h-12 items-center gap-3 rounded-2xl border border-black/10 bg-white px-4 shadow-sm transition focus-within:border-[#D4AF37]/50 focus-within:ring-4 focus-within:ring-[#D4AF37]/10"
+    : "mt-3 flex h-12 items-center gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 transition focus-within:border-[#D4AF37]/40 focus-within:ring-4 focus-within:ring-[#D4AF37]/10";
   const editControlClassName = isLightTheme
     ? "w-full border-0 bg-transparent p-0 text-sm text-slate-900 outline-none placeholder:text-slate-400"
     : "w-full border-0 bg-transparent p-0 text-sm text-white outline-none placeholder:text-white/35";
+  const editSelectControlClassName = isLightTheme
+    ? "w-full appearance-none border-0 bg-transparent p-0 pr-8 text-sm text-slate-900 outline-none"
+    : "w-full appearance-none border-0 bg-transparent p-0 pr-8 text-sm text-white outline-none";
+  const editPickerControlClassName = isLightTheme
+    ? "crm-picker w-full border-0 bg-transparent p-0 text-sm text-slate-900 outline-none"
+    : "crm-picker w-full border-0 bg-transparent p-0 text-sm text-white outline-none";
+  const controlIconClassName = isLightTheme ? "h-4 w-4 text-slate-400" : "h-4 w-4 text-white/45";
   const editCheckboxCardClassName = isLightTheme
     ? "flex items-start gap-3 rounded-2xl border border-black/10 bg-white px-4 py-4 shadow-sm"
     : "flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 px-4 py-4";
@@ -1429,9 +1444,9 @@ function ManageLeads({
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Product group</Label>
-                          <div className={editInputShellClassName}>
+                          <div className={editSelectShellClassName}>
                             <select
-                              className={editControlClassName}
+                              className={editSelectControlClassName}
                               value={selectedLead.product_group || selectedLead.productGroup || ""}
                               onChange={(event) =>
                                 setSelectedLead((prev) => ({ ...prev, product_group: event.target.value }))
@@ -1444,13 +1459,14 @@ function ManageLeads({
                                 </option>
                               ))}
                             </select>
+                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Customer group</Label>
-                          <div className={editInputShellClassName}>
+                          <div className={editSelectShellClassName}>
                             <select
-                              className={editControlClassName}
+                              className={editSelectControlClassName}
                               value={selectedLead.customer_group || selectedLead.customerGroup || ""}
                               onChange={(event) =>
                                 setSelectedLead((prev) => ({ ...prev, customer_group: event.target.value }))
@@ -1463,13 +1479,14 @@ function ManageLeads({
                                 </option>
                               ))}
                             </select>
+                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Assign to</Label>
-                          <div className={editInputShellClassName}>
+                          <div className={editSelectShellClassName}>
                             <select
-                              className={editControlClassName}
+                              className={editSelectControlClassName}
                               value={selectedLead.assigned_to || selectedLead.assignedTo || ""}
                               onChange={(event) =>
                                 setSelectedLead((prev) => ({ ...prev, assigned_to: event.target.value }))
@@ -1482,6 +1499,7 @@ function ManageLeads({
                                 </option>
                               ))}
                             </select>
+                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
@@ -1499,9 +1517,9 @@ function ManageLeads({
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Lead potential</Label>
-                          <div className={editInputShellClassName}>
+                          <div className={editSelectShellClassName}>
                             <select
-                              className={editControlClassName}
+                              className={editSelectControlClassName}
                               value={selectedLead.lead_potential || selectedLead.leadPotential || ""}
                               onChange={(event) =>
                                 setSelectedLead((prev) => ({ ...prev, lead_potential: event.target.value }))
@@ -1512,13 +1530,14 @@ function ManageLeads({
                               <option value="Medium">Medium</option>
                               <option value="High">High</option>
                             </select>
+                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
                           </div>
                         </div>
                         <div className={dialogFieldClassName}>
                           <Label className={dialogLabelClassName}>Lead stage</Label>
-                          <div className={editInputShellClassName}>
+                          <div className={editSelectShellClassName}>
                             <select
-                              className={editControlClassName}
+                              className={editSelectControlClassName}
                               value={selectedLead.lead_stage || selectedLead.leadStage || ""}
                               onChange={(event) =>
                                 setSelectedLead((prev) => ({ ...prev, lead_stage: event.target.value }))
@@ -1530,6 +1549,7 @@ function ManageLeads({
                               <option value="Qualified">Qualified</option>
                               <option value="Lost">Lost</option>
                             </select>
+                            <ChevronDown className={`${controlIconClassName} pointer-events-none -ml-6 shrink-0`} />
                           </div>
                         </div>
                       </div>
@@ -1549,26 +1569,41 @@ function ManageLeads({
                       </div>
 
                       <div className="space-y-4">
-                        <div className={dialogFieldClassName}>
-                          <Label className={dialogLabelClassName}>Next follow-up</Label>
-                          <div className={editInputShellClassName}>
-                            <input
-                              type="datetime-local"
-                              className={editControlClassName}
-                              value={
-                                selectedLead.followUpDate
-                                  ? `${selectedLead.followUpDate}T${selectedLead.followUpTime || "00:00"}`
-                                  : ""
-                              }
-                              onChange={(event) => {
-                                const [date, time] = event.target.value.split("T");
-                                setSelectedLead((prev) => ({
-                                  ...prev,
-                                  followUpDate: date,
-                                  followUpTime: time || "00:00",
-                                }));
-                              }}
-                            />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className={dialogFieldClassName}>
+                            <Label className={dialogLabelClassName}>Follow-up date</Label>
+                            <div className={editPickerShellClassName}>
+                              <CalendarDays className={`${controlIconClassName} shrink-0`} />
+                              <input
+                                type="date"
+                                className={editPickerControlClassName}
+                                value={selectedLead.followUpDate || ""}
+                                onChange={(event) =>
+                                  setSelectedLead((prev) => ({
+                                    ...prev,
+                                    followUpDate: event.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className={dialogFieldClassName}>
+                            <Label className={dialogLabelClassName}>Follow-up time</Label>
+                            <div className={editPickerShellClassName}>
+                              <Clock3 className={`${controlIconClassName} shrink-0`} />
+                              <input
+                                type="time"
+                                className={editPickerControlClassName}
+                                value={selectedLead.followUpTime || ""}
+                                onChange={(event) =>
+                                  setSelectedLead((prev) => ({
+                                    ...prev,
+                                    followUpTime: event.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
 
