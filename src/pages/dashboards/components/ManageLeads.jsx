@@ -219,6 +219,7 @@ function ManageLeads({
   const canEditLead = hasPermission("canEditLead");
   const canDeleteLead = hasPermission("canDeleteLead");
   const canExportLeads = hasPermission("canExportLeads");
+  const canManageQualifiers = hasPermission("canManageQualifiers");
 
   useEffect(() => {
     toastRef.current = toast;
@@ -290,6 +291,13 @@ function ManageLeads({
 
   useEffect(() => {
     const fetchQualifiers = async () => {
+      if (!canEditLead && !canManageQualifiers) {
+        setProductGroups([]);
+        setCustomerGroups([]);
+        setTagsList([]);
+        return;
+      }
+
       try {
         const [products, customers, tags] = await Promise.all([
           QUALIFIERS.FETCH_ALL("product"),
@@ -324,7 +332,7 @@ function ManageLeads({
 
     fetchQualifiers();
     fetchUsers();
-  }, [canEditLead]);
+  }, [canEditLead, canManageQualifiers]);
 
   useEffect(() => {
     if (!initialListId) return;
@@ -773,8 +781,21 @@ function ManageLeads({
 
     setExporting(true);
     try {
+      const exportResponse = await LEADS.EXPORT();
+      if (exportResponse?.status !== 200) {
+        toast({
+          title: "Export failed",
+          description: exportResponse?.data?.message || "Unable to generate the Excel file.",
+        });
+        return;
+      }
+
+      const exportableLeads = Array.isArray(exportResponse.data?.data)
+        ? exportResponse.data.data.filter((lead) => filteredLeads.some((entry) => String(entry.id) === String(lead.id)))
+        : [];
+
       await exportLeadsReport({
-        leads: filteredLeads,
+        leads: exportableLeads,
         lists,
         generatedBy: user?.name || user?.username || user?.email || "Admin",
         appliedFilter: appliedFilterLabel,

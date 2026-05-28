@@ -5,6 +5,7 @@ type RoleValue = (typeof ROLES)[keyof typeof ROLES];
 
 const ROLE_STYLES: Record<RoleValue, string> = {
   [ROLES.MAIN_ADMIN]: "border-[#D4AF37]/35 bg-[#D4AF37]/12 text-[#D4AF37]",
+  [ROLES.MANAGER]: "border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
   [ROLES.L1]: "border-sky-500/25 bg-sky-500/10 text-sky-300",
   [ROLES.L2]: "border-white/15 bg-white/5 text-white/75",
 };

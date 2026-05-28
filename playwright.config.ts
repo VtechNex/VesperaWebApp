@@ -1,11 +1,13 @@
 import { defineConfig } from '@playwright/test'
 
+const useExternalServer = process.env.PLAYWRIGHT_USE_EXTERNAL_SERVER === '1'
+
 export default defineConfig({
   testDir: 'tests/ui',
   timeout: 60_000,
   fullyParallel: false,
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://127.0.0.1:5173',
     headless: true,
     screenshot: 'only-on-failure',
     video: 'off',
@@ -13,12 +15,16 @@ export default defineConfig({
     colorScheme: 'dark',
     viewport: { width: 1280, height: 800 },
   },
-  webServer: {
-    command: 'npm run preview -- --host localhost --port 5173',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  ...(useExternalServer
+    ? {}
+    : {
+        webServer: {
+          command: 'npm run preview -- --host localhost --port 5173',
+          url: 'http://127.0.0.1:5173',
+          reuseExistingServer: true,
+          timeout: 120_000,
+        },
+      }),
   projects: [
     {
       name: 'chromium',

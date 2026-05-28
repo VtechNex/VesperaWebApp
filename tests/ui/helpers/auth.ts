@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import CryptoJS from "crypto-js";
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
-type RoleKey = "mainAdmin" | "manager" | "l2";
+type RoleKey = "mainAdmin" | "manager" | "l1" | "l2";
 
 type QaUser = {
   id: string;
@@ -19,18 +19,25 @@ const API_BASE = "http://127.0.0.1:5000";
 
 const QA_USERS: Record<RoleKey, QaUser> = {
   mainAdmin: {
-    id: "46ffbbc0-eaae-487a-9935-685ccf50817f",
-    email: "akrammulani11@gmail.com",
+    id: "0aa19bba-14e6-4863-8175-9b861f680a89",
+    email: "vesperaestate@gmail.com",
     role: "MAIN_ADMIN",
-    username: "main_admin_qc",
-    name: "Main Admin QA",
+    username: "VesperaEstate",
+    name: "Vespera Estate",
   },
   manager: {
     id: "92d0a733-6f67-45da-8d8d-475439e5a3f7",
     email: "akramamulani786@gmail.com",
-    role: "manager",
-    username: "manager_qc",
-    name: "Manager QA",
+    role: "MANAGER",
+    username: "Manager1",
+    name: "Manager One",
+  },
+  l1: {
+    id: "bf227566-ba56-4f75-9ef5-6b6377210314",
+    email: "akrammulani271@gmail.com",
+    role: "L1",
+    username: "level1",
+    name: "Level 1 QA",
   },
   l2: {
     id: "47eed036-3f01-4205-9ffe-a69d3ff151e6",

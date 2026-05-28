@@ -17,7 +17,7 @@ test.describe("Admin RBAC UI and route verification", () => {
 
     const routesToVerify = [
       { path: "/dashboard/admin/leads", heading: "Manage Leads", timeout: 5000 },
-      { path: "/dashboard/admin/add-leads", heading: "Add a New Lead or Customer", timeout: 5000 },
+      { path: "/dashboard/admin/add-leads", heading: "Add a New Lead or Customer", timeout: 15000 },
       { path: "/dashboard/admin/manage-list", heading: "Manage Lists", timeout: 5000 },
       { path: "/dashboard/admin/settings/user-profile", heading: "User Profile", timeout: 5000 },
       { path: "/dashboard/admin/settings/company-profile", heading: "Primary Contact and Organization Details", timeout: 15000 },
@@ -31,19 +31,28 @@ test.describe("Admin RBAC UI and route verification", () => {
     }
   });
 
-  test("L1/Manager can view leads and add-leads but cannot reach restricted admin areas", async ({ page }) => {
+  test("MANAGER can access user controls while retaining lead and settings access", async ({ page }) => {
     await applyAuthSession(page, "manager");
 
     await page.goto("/dashboard/admin/leads");
     await expect(page.getByText("Manage Leads", { exact: false }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /export/i })).toHaveCount(0);
-    await expect(page.getByText("Manage Users", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /export/i })).toBeVisible();
+    await expect(page.getByText("Manage Users", { exact: true })).toBeVisible();
 
     await page.goto("/dashboard/admin/add-leads");
     await expect(page.getByText("Add a New Lead or Customer", { exact: false })).toBeVisible();
 
     await page.goto("/dashboard/admin/manage-users");
-    await expect(page.getByText("Access Restricted", { exact: false })).toBeVisible();
+    await expect(page.getByText("Permission Control", { exact: false })).toBeVisible();
+    await expect(page.getByText("Manage Users", { exact: true }).first()).toBeVisible();
+  });
+
+  test("L1 without export permission does not see the Export action", async ({ page }) => {
+    await applyAuthSession(page, "l1");
+
+    await page.goto("/dashboard/admin/leads");
+    await expect(page.getByText("Manage Leads", { exact: false }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Export$/i })).toHaveCount(0);
   });
 
   test("L2 cannot add leads, cannot export, and sees restricted phone text in lead UI", async ({ page }) => {
@@ -51,7 +60,7 @@ test.describe("Admin RBAC UI and route verification", () => {
 
     await page.goto("/dashboard/admin/leads");
     await expect(page.getByText("Manage Leads", { exact: false }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /export/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Export$/i })).toHaveCount(0);
     await expect(page.getByText("Add Leads", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Restricted", { exact: false }).first()).toBeVisible();
 

@@ -85,6 +85,15 @@ async function searchLeads(query) {
   }
 }
 
+async function exportLeads() {
+  try {
+    const response = await apiClient.get(`${API.LEADS}/export`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to export leads");
+  }
+}
+
 const LEADS = {
   CREATE: createLead,
   FETCH_ALL: fetchAllLeads,
@@ -93,6 +102,7 @@ const LEADS = {
   UPDATE: updateLead,
   DELETE: deleteLead,
   SEARCH: searchLeads,
+  EXPORT: exportLeads,
 };
 
 export default LEADS;

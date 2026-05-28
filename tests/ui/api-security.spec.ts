@@ -8,7 +8,7 @@ import {
 } from "./helpers/auth";
 
 test.describe("API RBAC and persistence verification", () => {
-  test("MAIN_ADMIN can perform lead CRUD and L1/L2 are blocked from restricted mutations", async ({ request }) => {
+  test("MAIN_ADMIN and MANAGER retain full operational lead access while L2 stays blocked", async ({ request }) => {
     const listsResponse = await apiGet(request, "mainAdmin", "/api/lists/with-counts");
     expect(listsResponse.ok()).toBeTruthy();
     const listsPayload = await listsResponse.json();
@@ -33,11 +33,11 @@ test.describe("API RBAC and persistence verification", () => {
 
     const leadId = createdLead.id;
 
-    const l1EditResponse = await apiPut(request, "manager", `/api/leads/${leadId}`, {
+    const managerEditResponse = await apiPut(request, "manager", `/api/leads/${leadId}`, {
       ...createPayload,
-      fname: "Edited By L1",
+      fname: "Edited By Manager",
     });
-    expect(l1EditResponse.status()).toBe(403);
+    expect(managerEditResponse.ok()).toBeTruthy();
 
     const l2EditResponse = await apiPut(request, "l2", `/api/leads/${leadId}`, {
       ...createPayload,
@@ -56,16 +56,25 @@ test.describe("API RBAC and persistence verification", () => {
     const updatedLead = (await updateResponse.json())?.data;
     expect(updatedLead?.notes).toContain("Updated by Playwright");
 
-    const l1DeleteResponse = await apiDelete(request, "manager", `/api/leads/${leadId}`);
-    expect(l1DeleteResponse.status()).toBe(403);
+    const managerDeleteResponse = await apiDelete(request, "manager", `/api/leads/${leadId}`);
+    expect(managerDeleteResponse.ok()).toBeTruthy();
 
-    const l2DeleteResponse = await apiDelete(request, "l2", `/api/leads/${leadId}`);
+    const recreateResponse = await apiPost(request, "mainAdmin", "/api/leads", {
+      ...createPayload,
+      mobile: `91111${String(uniqueSuffix).slice(-5)}`,
+      email: `qa.lead.recreated.${uniqueSuffix}@vespera.local`,
+    });
+    expect(recreateResponse.status()).toBe(201);
+    const recreatedLeadId = (await recreateResponse.json())?.data?.id;
+    expect(recreatedLeadId).toBeTruthy();
+
+    const l2DeleteResponse = await apiDelete(request, "l2", `/api/leads/${recreatedLeadId}`);
     expect(l2DeleteResponse.status()).toBe(403);
 
-    const deleteResponse = await apiDelete(request, "mainAdmin", `/api/leads/${leadId}`);
+    const deleteResponse = await apiDelete(request, "mainAdmin", `/api/leads/${recreatedLeadId}`);
     expect(deleteResponse.ok()).toBeTruthy();
 
-    const verifyDeleted = await apiGet(request, "mainAdmin", `/api/leads/${leadId}`);
+    const verifyDeleted = await apiGet(request, "mainAdmin", `/api/leads/${recreatedLeadId}`);
     expect(verifyDeleted.status()).toBe(404);
   });
 
@@ -81,7 +90,14 @@ test.describe("API RBAC and persistence verification", () => {
     expect(firstLead.mobile_masked).toBe("Restricted");
   });
 
-  test("Custom-field management is admin-only while form metadata is readable by L1", async ({ request }) => {
+  test("Export endpoint blocks L2 when canExportLeads is false", async ({ request }) => {
+    const response = await apiGet(request, "l2", "/api/leads/export");
+    expect(response.status()).toBe(403);
+    const payload = await response.json();
+    expect(payload?.message).toBe("You do not have permission to export leads.");
+  });
+
+  test("MANAGER can access settings data while L2 stays blocked", async ({ request }) => {
     const fieldName = `QA Field ${Date.now()}`;
     const createFieldResponse = await apiPost(request, "mainAdmin", "/api/settings/custom-fields", {
       name: fieldName,
@@ -94,19 +110,21 @@ test.describe("API RBAC and persistence verification", () => {
     const createdField = (await createFieldResponse.json())?.data;
     expect(createdField?.id).toBeTruthy();
 
-    const l1MetadataResponse = await apiGet(request, "manager", "/api/settings/custom-fields/form-metadata");
-    expect(l1MetadataResponse.ok()).toBeTruthy();
-    const metadataPayload = await l1MetadataResponse.json();
+    const managerMetadataResponse = await apiGet(request, "manager", "/api/settings/custom-fields/form-metadata");
+    expect(managerMetadataResponse.ok()).toBeTruthy();
+    const metadataPayload = await managerMetadataResponse.json();
     expect(metadataPayload.data.some((field: { name: string }) => field.name === fieldName)).toBeTruthy();
 
-    const l1WriteResponse = await apiPost(request, "manager", "/api/settings/custom-fields", {
+    const managerWriteResponse = await apiPost(request, "manager", "/api/settings/custom-fields", {
       name: `${fieldName} blocked`,
       type: "text",
       values: [],
       mandatory: false,
       lists: [],
     });
-    expect(l1WriteResponse.status()).toBe(403);
+    expect(managerWriteResponse.status()).toBe(201);
+    const managerCreatedFieldId = (await managerWriteResponse.json())?.data?.id;
+    expect(managerCreatedFieldId).toBeTruthy();
 
     const l2WriteResponse = await apiPost(request, "l2", "/api/settings/custom-fields", {
       name: `${fieldName} blocked l2`,
@@ -119,13 +137,15 @@ test.describe("API RBAC and persistence verification", () => {
 
     const deleteResponse = await apiDelete(request, "mainAdmin", `/api/settings/custom-fields/${createdField.id}`);
     expect(deleteResponse.ok()).toBeTruthy();
+    const deleteManagerCreatedResponse = await apiDelete(request, "mainAdmin", `/api/settings/custom-fields/${managerCreatedFieldId}`);
+    expect(deleteManagerCreatedResponse.ok()).toBeTruthy();
 
     const afterDeleteMetadata = await apiGet(request, "manager", "/api/settings/custom-fields/form-metadata");
     const afterDeletePayload = await afterDeleteMetadata.json();
     expect(afterDeletePayload.data.some((field: { name: string }) => field.name === fieldName)).toBeFalsy();
   });
 
-  test("Company profile updates persist for MAIN_ADMIN and are blocked for L1/L2", async ({ request }) => {
+  test("Company profile updates persist for MAIN_ADMIN and remain available to MANAGER but blocked for L2", async ({ request }) => {
     const originalResponse = await apiGet(request, "mainAdmin", "/api/settings/company-profile");
     expect(originalResponse.ok()).toBeTruthy();
     const originalPayload = await originalResponse.json();
@@ -169,8 +189,8 @@ test.describe("API RBAC and persistence verification", () => {
     const verifyPayload = await verifyResponse.json();
     expect(verifyPayload?.data?.primaryContact?.orgName).toBe(nextProfile.primaryContact.orgName);
 
-    const l1Blocked = await apiGet(request, "manager", "/api/settings/company-profile");
-    expect(l1Blocked.status()).toBe(403);
+    const managerAllowed = await apiGet(request, "manager", "/api/settings/company-profile");
+    expect(managerAllowed.ok()).toBeTruthy();
 
     const l2Blocked = await apiGet(request, "l2", "/api/settings/company-profile");
     expect(l2Blocked.status()).toBe(403);

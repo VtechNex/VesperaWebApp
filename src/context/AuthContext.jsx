@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import AUTH from "../services/authService";
-import { getPermissionsForRole, hasPermission as checkPermission, normalizeRole } from "../permissions";
+import { getEffectivePermissions, hasPermission as checkPermission, normalizeRole } from "../permissions";
 
 const AuthContext = createContext(null);
 const STORAGE_KEY = "vespera_auth_event";
@@ -51,7 +51,11 @@ export function AuthProvider({ children }) {
     try {
       const response = await AUTH.ME();
       if (response?.status === 200 && response.data?.data) {
-        const mergedUser = { ...stored, ...response.data.data, role: normalizeRole(response.data.data?.role || stored?.role) };
+        const mergedUser = {
+          ...stored,
+          ...response.data.data,
+          role: normalizeRole(response.data.data?.role || stored?.role),
+        };
         AUTH.SET_USER(mergedUser);
         setUser(mergedUser);
         setUserProfile(response.data.data);
@@ -113,30 +117,35 @@ export function AuthProvider({ children }) {
   }, [authError, authLoading, status, user]);
 
   const value = useMemo(
-    () => ({
-      user,
-      userProfile,
-      userRole: normalizeRole(user?.role),
-      permissions: getPermissionsForRole(user?.role),
-      status,
-      authLoading,
-      authError,
-      isAuthLoading: authLoading,
-      isRoleLoading: authLoading,
-      isAuthenticated: status === "authenticated",
-      hasPermission: (permissionName) => checkPermission(user?.role, permissionName),
-      login: async (email, password) => {
-        const response = await AUTH.LOGIN(email, password);
-        const refreshResult = await rehydrate();
-        if (!refreshResult?.authenticated) {
-          throw new Error("Login succeeded, but the session could not be refreshed.");
-        }
-        return response;
-      },
-      logout: () => performLogout(true),
-      rehydrate,
-      refreshAuthState: rehydrate,
-    }),
+    () => {
+      const mergedProfile = userProfile || user;
+      const permissions = getEffectivePermissions(mergedProfile);
+
+      return {
+        user,
+        userProfile,
+        userRole: normalizeRole(user?.role),
+        permissions,
+        status,
+        authLoading,
+        authError,
+        isAuthLoading: authLoading,
+        isRoleLoading: authLoading,
+        isAuthenticated: status === "authenticated",
+        hasPermission: (permissionName) => checkPermission(mergedProfile, permissionName),
+        login: async (email, password) => {
+          const response = await AUTH.LOGIN(email, password);
+          const refreshResult = await rehydrate();
+          if (!refreshResult?.authenticated) {
+            throw new Error("Login succeeded, but the session could not be refreshed.");
+          }
+          return response;
+        },
+        logout: () => performLogout(true),
+        rehydrate,
+        refreshAuthState: rehydrate,
+      };
+    },
     [authError, authLoading, performLogout, rehydrate, status, user, userProfile]
   );
 

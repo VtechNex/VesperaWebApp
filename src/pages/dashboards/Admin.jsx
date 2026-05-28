@@ -433,11 +433,12 @@ export default function Admin() {
     setLoadingDashboard(true)
     setDashboardError('')
     try {
-      const [listsResponse, leadsResponse, tagResponse] = await Promise.allSettled([
-        LISTS.FETCH_WITH_COUNTS(),
-        LEADS.FETCH_ALL(),
-        QUALIFIERS.FETCH_ALL("tag"),
-      ])
+      const requests = [LISTS.FETCH_WITH_COUNTS(), LEADS.FETCH_ALL()]
+      if (canManageQualifiers) {
+        requests.push(QUALIFIERS.FETCH_ALL("tag"))
+      }
+
+      const [listsResponse, leadsResponse, tagResponse] = await Promise.allSettled(requests)
 
       if (listsResponse.status === 'fulfilled' && listsResponse.value?.status === 200 && listsResponse.value?.data?.data) {
         setLists(listsResponse.value.data.data)
@@ -445,7 +446,7 @@ export default function Admin() {
       if (leadsResponse.status === 'fulfilled' && leadsResponse.value?.status === 200 && leadsResponse.value?.data?.data) {
         setLeads(leadsResponse.value.data.data)
       }
-      if (tagResponse.status === 'fulfilled' && tagResponse.value?.status === 200 && Array.isArray(tagResponse.value.data?.data)) {
+      if (canManageQualifiers && tagResponse?.status === 'fulfilled' && tagResponse.value?.status === 200 && Array.isArray(tagResponse.value.data?.data)) {
         setTagNameMap(
           tagResponse.value.data.data.reduce((accumulator, tag) => {
             accumulator[String(tag.id)] = tag.name || String(tag.id)
@@ -469,7 +470,7 @@ export default function Admin() {
   // initial load
   useEffect(() => {
     loadDashboard()
-  }, [])
+  }, [canManageQualifiers])
 
   useEffect(() => {
     if (!loadingDashboard) {
