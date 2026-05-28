@@ -79,9 +79,11 @@ test.describe("API RBAC and persistence verification", () => {
   });
 
   test("L2 lead responses do not expose phone fields", async ({ request }) => {
-    const response = await apiGet(request, "l2", "/api/leads");
+    const response = await apiGet(request, "l2", "/api/leads?page=1&limit=5");
     expect(response.ok()).toBeTruthy();
     const payload = await response.json();
+    expect(payload?.pagination?.page).toBe(1);
+    expect(payload?.pagination?.limit).toBe(5);
     const firstLead = payload?.data?.[0];
     expect(firstLead).toBeTruthy();
     expect(firstLead.mobile).toBeUndefined();
@@ -95,6 +97,21 @@ test.describe("API RBAC and persistence verification", () => {
     expect(response.status()).toBe(403);
     const payload = await response.json();
     expect(payload?.message).toBe("You do not have permission to export leads.");
+  });
+
+  test("Lead pagination supports query params and returns pagination metadata", async ({ request }) => {
+    const response = await apiGet(request, "mainAdmin", "/api/leads?page=1&limit=2&sortBy=createdAt&sortOrder=desc");
+    expect(response.ok()).toBeTruthy();
+
+    const payload = await response.json();
+    expect(Array.isArray(payload?.data)).toBeTruthy();
+    expect(payload?.pagination?.page).toBe(1);
+    expect(payload?.pagination?.limit).toBe(2);
+    expect(typeof payload?.pagination?.total).toBe("number");
+    expect(typeof payload?.pagination?.totalPages).toBe("number");
+    expect(typeof payload?.pagination?.hasNextPage).toBe("boolean");
+    expect(typeof payload?.pagination?.hasPrevPage).toBe("boolean");
+    expect(payload.data.length).toBeLessThanOrEqual(2);
   });
 
   test("MANAGER can access settings data while L2 stays blocked", async ({ request }) => {

@@ -1,6 +1,18 @@
 import API from "../utils/utils";
 import apiClient, { normalizeApiError } from "./apiClient";
 
+function buildLeadQueryParams(filters = {}) {
+  const params = new URLSearchParams();
+  const entries = Object.entries(filters).filter(([, value]) => value !== undefined && value !== null && value !== "");
+
+  for (const [key, value] of entries) {
+    params.set(key, String(value));
+  }
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
+}
+
 function validateLeadPayload(leadData) {
   if (!leadData?.fname || !leadData?.mobile || !leadData?.list_id) {
     return {
@@ -24,12 +36,36 @@ async function createLead(leadData) {
   }
 }
 
-async function fetchAllLeads() {
+async function fetchLeadPage(filters = {}) {
   try {
-    const response = await apiClient.get(API.LEADS);
+    const response = await apiClient.get(`${API.LEADS}${buildLeadQueryParams(filters)}`);
     return { status: response.status, data: response.data };
   } catch (error) {
     const normalized = normalizeApiError(error, "Failed to fetch leads");
+    return {
+      ...normalized,
+      data: {
+        ...normalized.data,
+        data: normalized.data?.data || [],
+        pagination: normalized.data?.pagination || {
+          page: 1,
+          limit: Number(filters.limit || 25),
+          total: 0,
+          totalPages: 0,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      },
+    };
+  }
+}
+
+async function fetchAllLeads(filters = {}) {
+  try {
+    const response = await apiClient.get(`${API.LEADS}/all${buildLeadQueryParams(filters)}`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    const normalized = normalizeApiError(error, "Failed to fetch all leads");
     return {
       ...normalized,
       data: {
@@ -85,9 +121,9 @@ async function searchLeads(query) {
   }
 }
 
-async function exportLeads() {
+async function exportLeads(filters = {}) {
   try {
-    const response = await apiClient.get(`${API.LEADS}/export`);
+    const response = await apiClient.get(`${API.LEADS}/export${buildLeadQueryParams(filters)}`);
     return { status: response.status, data: response.data };
   } catch (error) {
     return normalizeApiError(error, "Failed to export leads");
@@ -96,6 +132,7 @@ async function exportLeads() {
 
 const LEADS = {
   CREATE: createLead,
+  FETCH_PAGE: fetchLeadPage,
   FETCH_ALL: fetchAllLeads,
   FETCH_BY_LIST: fetchLeadsByListId,
   GET_BY_ID: getLeadById,

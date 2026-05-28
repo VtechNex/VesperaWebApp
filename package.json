@@ -8,6 +8,7 @@
     "server": "node ./server/index.js",
     "build": "vite build",
     "lint": "npm run type-check",
+    "test": "npm run test:ui",
     "type-check": "tsc --noEmit",
     "preview": "vite preview --port=5173",
     "test:ui": "npm run build && playwright test -c playwright.config.ts",

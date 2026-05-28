@@ -90,37 +90,6 @@ function truncateText(text, max = 120) {
   return `${text.slice(0, max).trim()}...`;
 }
 
-function getTimestampValue(lead) {
-  const candidates = [
-    lead?.created_at,
-    lead?.createdAt,
-    lead?.date,
-    lead?.updated_at,
-    lead?.updatedAt,
-  ];
-
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    const parsed = new Date(candidate).getTime();
-    if (!Number.isNaN(parsed)) return parsed;
-  }
-
-  const numericId = Number(lead?.id);
-  return Number.isFinite(numericId) ? numericId : 0;
-}
-
-function sortLeadsNewestFirst(leads = []) {
-  return [...leads].sort((a, b) => {
-    const timeDifference = getTimestampValue(b) - getTimestampValue(a);
-    if (timeDifference !== 0) return timeDifference;
-
-    const idDifference = Number(b?.id || 0) - Number(a?.id || 0);
-    if (!Number.isNaN(idDifference) && idDifference !== 0) return idDifference;
-
-    return String(b?.fname || "").localeCompare(String(a?.fname || ""));
-  });
-}
-
 function EditSelect({
   value,
   placeholder = "Select",
@@ -192,6 +161,7 @@ function ManageLeads({
   const [listMenuOpen, setListMenuOpen] = useState(false);
   const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [listFilter, setListFilter] = useState(() => searchParams.get("list") || initialListId || "");
+  const [stageFilter, setStageFilter] = useState(() => searchParams.get("stage") || "");
   const [viewMode, setViewMode] = useState(() => searchParams.get("view") || initialViewMode || "all");
   const [page, setPage] = useState(() => {
     const parsed = Number(searchParams.get("page") || 1);
@@ -214,12 +184,27 @@ function ManageLeads({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadPendingDelete, setLeadPendingDelete] = useState(null);
   const [leadDeleteLoading, setLeadDeleteLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: PAGE_SIZE_OPTIONS[0],
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+  const [summary, setSummary] = useState({
+    total: 0,
+    unattended: 0,
+    assigned: 0,
+    hot: 0,
+  });
   const debouncedSearch = useDebouncedValue(search, 250);
   const canViewLeadPhone = hasPermission("canViewLeadPhone");
   const canEditLead = hasPermission("canEditLead");
   const canDeleteLead = hasPermission("canDeleteLead");
   const canExportLeads = hasPermission("canExportLeads");
   const canManageQualifiers = hasPermission("canManageQualifiers");
+  const activeAssignedFilter = viewMode === "unattended" ? "unassigned" : "";
 
   useEffect(() => {
     toastRef.current = toast;
@@ -231,6 +216,7 @@ function ManageLeads({
 
       if (nextState.search) next.set("search", nextState.search);
       if (nextState.listFilter) next.set("list", nextState.listFilter);
+      if (nextState.stageFilter) next.set("stage", nextState.stageFilter);
       if (nextState.viewMode) next.set("view", nextState.viewMode);
       if (nextState.page > 1) next.set("page", String(nextState.page));
       if (nextState.pageSize !== PAGE_SIZE_OPTIONS[0]) {
@@ -243,8 +229,8 @@ function ManageLeads({
   );
 
   useEffect(() => {
-    syncSearchParams({ search, listFilter, viewMode, page, pageSize });
-  }, [listFilter, page, pageSize, search, syncSearchParams, viewMode]);
+    syncSearchParams({ search, listFilter, stageFilter, viewMode, page, pageSize });
+  }, [listFilter, page, pageSize, search, stageFilter, syncSearchParams, viewMode]);
 
   const fetchData = useCallback(async () => {
     const fetchId = latestFetchIdRef.current + 1;
@@ -253,14 +239,55 @@ function ManageLeads({
     setLoading(true);
     setLoadError("");
     try {
-      const res = await LEADS.FETCH_ALL();
+      const res = await LEADS.FETCH_PAGE({
+        page,
+        limit: pageSize,
+        search: debouncedSearch.trim() || undefined,
+        listId: listFilter || undefined,
+        stage: stageFilter || undefined,
+        assignedTo: activeAssignedFilter || undefined,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
       if (latestFetchIdRef.current !== fetchId) return;
 
       if (res?.data?.success) {
         setLeads(Array.isArray(res.data.data) ? res.data.data : []);
+        setPagination(
+          res.data?.pagination || {
+            page,
+            limit: pageSize,
+            total: 0,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPrevPage: false,
+          }
+        );
+        setSummary(
+          res.data?.summary || {
+            total: res.data?.pagination?.total || 0,
+            unattended: 0,
+            assigned: 0,
+            hot: 0,
+          }
+        );
         setHasLoadedOnce(true);
       } else {
         setLeads([]);
+        setPagination({
+          page,
+          limit: pageSize,
+          total: 0,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        });
+        setSummary({
+          total: 0,
+          unattended: 0,
+          assigned: 0,
+          hot: 0,
+        });
         setLoadError(res?.data?.message || "Lead data could not be loaded.");
         toastRef.current({
           title: "Unable to load leads",
@@ -272,6 +299,20 @@ function ManageLeads({
 
       console.error(error);
       setLeads([]);
+      setPagination({
+        page,
+        limit: pageSize,
+        total: 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false,
+      });
+      setSummary({
+        total: 0,
+        unattended: 0,
+        assigned: 0,
+        hot: 0,
+      });
       setLoadError("Lead data could not be loaded.");
       toastRef.current({
         title: "Unable to load leads",
@@ -283,7 +324,7 @@ function ManageLeads({
         setHasLoadedOnce(true);
       }
     }
-  }, []);
+  }, [activeAssignedFilter, debouncedSearch, listFilter, page, pageSize, stageFilter]);
 
   useEffect(() => {
     fetchData();
@@ -361,63 +402,26 @@ function ManageLeads({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const sortedLeads = useMemo(() => sortLeadsNewestFirst(leads), [leads]);
-
-  const filteredLeads = useMemo(() => {
-    let data = [...sortedLeads];
-
-    if (debouncedSearch.trim()) {
-      const query = debouncedSearch.trim().toLowerCase();
-      data = data.filter((lead) => {
-        const fullName = `${lead.fname || ""} ${lead.lname || ""}`.trim().toLowerCase();
-        return (
-          fullName.includes(query) ||
-          String(lead.email || "").toLowerCase().includes(query) ||
-          String(lead.mobile || lead.mobile_masked || "").toLowerCase().includes(query) ||
-          String(lead.organization || "").toLowerCase().includes(query)
-        );
-      });
-    }
-
-    if (listFilter) {
-      data = data.filter((lead) => String(lead.list_id) === String(listFilter));
-    }
-
-    if (viewMode === "unattended") {
-      data = data.filter((lead) => !lead.assigned_to);
-    }
-
-    return data;
-  }, [debouncedSearch, listFilter, sortedLeads, viewMode]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-
-  useEffect(() => {
-    if (page !== currentPage) {
-      setPage(currentPage);
-    }
-  }, [currentPage, page]);
-
-  const paginatedLeads = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredLeads.slice(startIndex, startIndex + pageSize);
-  }, [currentPage, filteredLeads, pageSize]);
-
   const stats = useMemo(
     () => ({
-      total: leads.length,
-      unattended: leads.filter((lead) => !lead.assigned_to).length,
-      assigned: leads.filter((lead) => lead.assigned_to).length,
-      hot: leads.filter((lead) =>
-        lists.find((list) => String(list.id) === String(lead.list_id))?.name?.toLowerCase().includes("hot")
-      ).length,
+      total: Number(summary?.total || pagination.total || 0),
+      unattended: Number(summary?.unattended || 0),
+      assigned: Number(summary?.assigned || 0),
+      hot: Number(summary?.hot || 0),
     }),
-    [leads, lists]
+    [pagination.total, summary]
   );
 
-  const rangeStart = filteredLeads.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const rangeEnd = filteredLeads.length === 0 ? 0 : Math.min(currentPage * pageSize, filteredLeads.length);
+  const currentPage = pagination.page || page;
+  const totalPages = pagination.totalPages || 1;
+  useEffect(() => {
+    if (pagination.total > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, pagination.total, totalPages]);
+
+  const rangeStart = pagination.total === 0 ? 0 : (currentPage - 1) * (pagination.limit || pageSize) + 1;
+  const rangeEnd = pagination.total === 0 ? 0 : Math.min(currentPage * (pagination.limit || pageSize), pagination.total);
 
   const getListName = useCallback(
     (id) => lists.find((list) => String(list.id) === String(id))?.name || "-",
@@ -430,9 +434,10 @@ function ManageLeads({
     if (listFilter) {
       return activeListName.toLowerCase().includes("hot") ? "Hot Leads" : `List: ${activeListName}`;
     }
+    if (stageFilter) return `Stage: ${stageFilter}`;
     if (viewMode === "unattended") return "Unattended Leads";
     return "All Leads";
-  }, [activeListName, listFilter, search, viewMode]);
+  }, [activeListName, listFilter, search, stageFilter, viewMode]);
   const showInitialSkeleton = loading && !hasLoadedOnce;
   const showRefreshIndicator = loading && hasLoadedOnce;
   const isLightTheme = theme === "light";
@@ -578,6 +583,11 @@ function ManageLeads({
 
   const updateListFilter = (value) => {
     setListFilter(value);
+    setPage(1);
+  };
+
+  const updateStageFilter = (value) => {
+    setStageFilter(value);
     setPage(1);
   };
 
@@ -771,7 +781,7 @@ function ManageLeads({
       });
       return;
     }
-    if (!filteredLeads.length) {
+    if (!pagination.total) {
       toast({
         title: "No leads available to export.",
         description: "Adjust your filters or add leads before exporting.",
@@ -781,7 +791,14 @@ function ManageLeads({
 
     setExporting(true);
     try {
-      const exportResponse = await LEADS.EXPORT();
+      const exportResponse = await LEADS.EXPORT({
+        search: debouncedSearch.trim() || undefined,
+        listId: listFilter || undefined,
+        stage: stageFilter || undefined,
+        assignedTo: activeAssignedFilter || undefined,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
       if (exportResponse?.status !== 200) {
         toast({
           title: "Export failed",
@@ -790,9 +807,7 @@ function ManageLeads({
         return;
       }
 
-      const exportableLeads = Array.isArray(exportResponse.data?.data)
-        ? exportResponse.data.data.filter((lead) => filteredLeads.some((entry) => String(entry.id) === String(lead.id)))
-        : [];
+      const exportableLeads = Array.isArray(exportResponse.data?.data) ? exportResponse.data.data : [];
 
       await exportLeadsReport({
         leads: exportableLeads,
@@ -803,7 +818,7 @@ function ManageLeads({
 
       toast({
         title: "Export complete",
-        description: `${filteredLeads.length} lead${filteredLeads.length === 1 ? "" : "s"} exported successfully.`,
+        description: `${exportableLeads.length} lead${exportableLeads.length === 1 ? "" : "s"} exported successfully.`,
       });
     } catch (error) {
       console.error(error);
@@ -961,6 +976,18 @@ function ManageLeads({
                 ) : null}
               </div>
 
+              <select
+                value={stageFilter}
+                onChange={(event) => updateStageFilter(event.target.value)}
+                className={isLightTheme ? "rounded-md border border-black/10 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none" : "rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm text-white focus:outline-none"}
+              >
+                {leadStageOptions.map((option) => (
+                  <option key={option.label} value={option.value}>
+                    {option.value ? `Stage: ${option.label}` : "All Stages"}
+                  </option>
+                ))}
+              </select>
+
               <div className={segmentedClassName}>
                 <button
                   type="button"
@@ -1000,7 +1027,7 @@ function ManageLeads({
                     <div className="text-right">Actions</div>
                   </div>
 
-                  {paginatedLeads.map((lead) => (
+                  {leads.map((lead) => (
                     <div
                       key={lead.id}
                       className={`grid gap-3 px-4 py-4 text-sm transition-colors md:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_auto] ${isLightTheme ? "border-t border-black/10 hover:bg-slate-50" : "border-t border-white/5 hover:bg-white/5"}`}
@@ -1022,7 +1049,7 @@ function ManageLeads({
 
                       <div className="min-w-0">
                         <span className={`inline-flex max-w-full truncate rounded px-2 py-0.5 text-xs ${isLightTheme ? "bg-slate-100 text-slate-700" : "bg-white/10"}`}>
-                          {getListName(lead.list_id)}
+                          {lead.list_name || getListName(lead.list_id)}
                         </span>
                       </div>
 
@@ -1081,17 +1108,17 @@ function ManageLeads({
                   ))}
                 </div>
 
-                {filteredLeads.length === 0 ? (
+                {pagination.total === 0 ? (
                   <EmptyState
                     title="No leads found"
                     description="Adjust your search or filters to find matching leads."
                   />
                 ) : null}
 
-                {filteredLeads.length > 0 ? (
+                {pagination.total > 0 ? (
                   <div className={paginationClassName}>
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
-                      <span>{`Showing ${rangeStart}-${rangeEnd} of ${filteredLeads.length} leads`}</span>
+                      <span>{`Showing ${rangeStart}-${rangeEnd} of ${pagination.total} leads`}</span>
                       <label className="flex items-center gap-2">
                         <span className={isLightTheme ? "text-slate-500" : "text-white/60"}>Rows</span>
                         <select
@@ -1113,7 +1140,7 @@ function ManageLeads({
                       <Button
                         type="button"
                         onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
+                        disabled={!pagination.hasPrevPage}
                         className={isLightTheme ? "border border-black/10 bg-white px-4 py-2 text-slate-900 disabled:cursor-not-allowed disabled:opacity-40" : "border border-white/10 bg-white/[0.03] px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40"}
                       >
                         Previous
@@ -1121,7 +1148,7 @@ function ManageLeads({
                       <Button
                         type="button"
                         onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
+                        disabled={!pagination.hasNextPage}
                         className={isLightTheme ? "border border-black/10 bg-white px-4 py-2 text-slate-900 disabled:cursor-not-allowed disabled:opacity-40" : "border border-white/10 bg-white/[0.03] px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40"}
                       >
                         Next

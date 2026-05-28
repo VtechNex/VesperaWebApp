@@ -1,0 +1,11 @@
+Sample local QA placeholders only
+
+- MAIN_ADMIN
+  - Email: admin@example.com
+  - Password: ChangeMe123!
+
+- MANAGER
+  - Email: manager@example.com
+  - Password: ChangeMe123!
+
+Create or distribute real credentials through your secure secrets workflow only.
