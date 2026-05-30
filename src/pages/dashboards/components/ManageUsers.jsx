@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Eye, MoreHorizontal, PencilLine, ShieldCheck, Trash2, UserPlus, UserRoundCog } from "lucide-react";
+import { Eye, EyeOff, MoreHorizontal, PencilLine, ShieldCheck, Trash2, UserPlus, UserRoundCog } from "lucide-react";
 import { Input } from "../../../components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../../components/ui/dialog";
 import { Button } from "../../../components/ui/button";
@@ -61,6 +61,29 @@ function ToggleCard({ checked, disabled, label, description, onChange }) {
   );
 }
 
+function PasswordField({ value, disabled, showPassword, onChange, onToggle }) {
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        type={showPassword ? "text" : "password"}
+        disabled={disabled}
+        onChange={onChange}
+        className="border-white/15 bg-black/50 pr-11 text-white"
+      />
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        aria-label={showPassword ? "Hide password" : "Show password"}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-white/55 transition hover:text-[#F5E7B2] focus:outline-none focus-visible:text-[#F5E7B2] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
 function buildEmptyForm() {
   return {
     id: "",
@@ -108,6 +131,7 @@ export default function ManageUsers() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const isMainAdmin = userRole === ROLES.MAIN_ADMIN;
   const isManager = userRole === ROLES.MANAGER;
@@ -186,6 +210,7 @@ export default function ManageUsers() {
     const nextRole = allowedRoleOptions[0] || ROLES.L2;
     setDialogMode(CREATE_FORM);
     setSelectedUser(null);
+    setShowPassword(false);
     setForm({
       ...buildEmptyForm(),
       role: nextRole,
@@ -197,6 +222,7 @@ export default function ManageUsers() {
   const openViewDialog = (userRecord) => {
     setDialogMode(VIEW_FORM);
     setSelectedUser(userRecord);
+    setShowPassword(false);
     setForm(normalizeUserForm(userRecord));
     setDialogOpen(true);
   };
@@ -204,6 +230,7 @@ export default function ManageUsers() {
   const openEditDialog = (userRecord) => {
     setDialogMode(EDIT_FORM);
     setSelectedUser(userRecord);
+    setShowPassword(false);
     setForm(normalizeUserForm(userRecord));
     setDialogOpen(true);
   };
@@ -541,7 +568,13 @@ export default function ManageUsers() {
                 {dialogMode === CREATE_FORM ? (
                   <div>
                     <label className="mb-1 block text-xs uppercase tracking-[0.2em] text-white/45">Password</label>
-                    <Input value={form.password} type="password" disabled={isViewMode} onChange={(event) => updateForm("password", event.target.value)} className="border-white/15 bg-black/50 text-white" />
+                    <PasswordField
+                      value={form.password}
+                      disabled={isViewMode}
+                      showPassword={showPassword}
+                      onChange={(event) => updateForm("password", event.target.value)}
+                      onToggle={() => setShowPassword((prev) => !prev)}
+                    />
                   </div>
                 ) : null}
                 <div>

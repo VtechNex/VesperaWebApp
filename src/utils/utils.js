@@ -19,6 +19,7 @@ const API_CONFIG = {
   ADMIN: { envKey: "VITE_ADMIN_API", fallbackPath: "/api/admin" },
   LISTS: { envKey: "VITE_LISTS_API", fallbackPath: "/api/lists" },
   LEADS: { envKey: "VITE_LEADS_API", fallbackPath: "/api/leads" },
+  NOTIFICATIONS: { envKey: "VITE_NOTIFICATIONS_API", fallbackPath: "/api/notifications" },
   PROPERTIES: { envKey: "VITE_PROPERTIES_API", fallbackPath: "/api/properties" },
   GLOBAL: { envKey: "VITE_GLOBAL_API", fallbackPath: "/api/global" },
   SETTINGS: {

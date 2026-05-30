@@ -34,6 +34,7 @@ import { useAuth } from '../../context/AuthContext'
 import usePermissions from '../../hooks/usePermissions'
 import { buildDashboardAnalytics } from '../../utils/dashboardAnalytics'
 import AccessRestricted from '../../components/AccessRestricted'
+import NotificationBell from '../../components/notifications/NotificationBell.jsx'
 import {
   Bar,
   BarChart,
@@ -390,6 +391,21 @@ export default function Admin() {
   const onLogout = () => {
     logout()
     navigate('/')
+  }
+
+  const handleNotificationNavigate = (notification) => {
+    if (!notification) return
+
+    if (notification.entityType === 'lead' && hasPermission('canViewLeads')) {
+      setSelectedLeadListId('')
+      setManageLeadsOpen(true)
+      selectTab('manage-leads-all')
+      return
+    }
+
+    if (notification.entityType === 'user' && canManageUsers) {
+      selectTab('manage-users')
+    }
   }
 
   // Tabs or states
@@ -968,18 +984,24 @@ export default function Admin() {
           {/* Top divider (header content removed) */}
           <div className={`sticky top-0 z-10 backdrop-blur-xl ${isLightDashboard ? 'border-b border-black/10 bg-[rgba(246,241,231,0.88)]' : 'border-b border-white/10 bg-black/40'}`}>
             <div className="px-4 md:px-6 py-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setDashboardTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
-                  isLightDashboard
-                    ? 'border-black/10 bg-white text-slate-800 hover:bg-slate-50'
-                    : 'border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {isLightDashboard ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                {isLightDashboard ? 'Dark Theme' : 'Light Theme'}
-              </button>
+              <div className="flex items-center gap-3">
+                <NotificationBell
+                  theme={dashboardTheme}
+                  onNotificationNavigate={handleNotificationNavigate}
+                />
+                <button
+                  type="button"
+                  onClick={() => setDashboardTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${
+                    isLightDashboard
+                      ? 'border-black/10 bg-white text-slate-800 hover:bg-slate-50'
+                      : 'border-white/10 bg-white/[0.04] text-white/80 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {isLightDashboard ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                  {isLightDashboard ? 'Dark Theme' : 'Light Theme'}
+                </button>
+              </div>
             </div>
           </div>
 
