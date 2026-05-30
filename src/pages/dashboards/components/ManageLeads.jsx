@@ -14,6 +14,7 @@ import {
   Eye,
   FileText,
   Mail,
+  MessageCircle,
   MoreVertical,
   Phone,
   RefreshCw,
@@ -53,6 +54,7 @@ import Skeleton from "../../../components/ui/Skeleton";
 import StatCardSkeleton from "../../../components/ui/StatCardSkeleton";
 import TableSkeleton from "../../../components/ui/TableSkeleton";
 import usePermissions from "../../../hooks/usePermissions";
+import { buildWhatsAppUrl, formatWhatsAppNumber } from "../../../utils/whatsApp";
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
@@ -608,6 +610,29 @@ function ManageLeads({
     setMoreOpenId(null);
   };
 
+  const canUseWhatsAppForLead = (lead) => canViewLeadPhone && Boolean(formatWhatsAppNumber(lead?.mobile));
+
+  const handleOpenWhatsApp = (lead) => {
+    if (!canViewLeadPhone) {
+      toast({
+        title: "WhatsApp unavailable",
+        description: "Valid WhatsApp number not available for this lead.",
+      });
+      return;
+    }
+
+    const url = buildWhatsAppUrl(lead);
+    if (!url) {
+      toast({
+        title: "WhatsApp unavailable",
+        description: "Valid WhatsApp number not available for this lead.",
+      });
+      return;
+    }
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const handleDeleteLead = async () => {
     if (!leadPendingDelete?.id || leadDeleteLoading) return;
     if (!canDeleteLead) return;
@@ -1054,6 +1079,19 @@ function ManageLeads({
                       </div>
 
                       <div className="flex items-center justify-end gap-2">
+                        {canUseWhatsAppForLead(lead) ? (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            aria-label="Open WhatsApp"
+                            title="Open WhatsApp"
+                            onClick={() => handleOpenWhatsApp(lead)}
+                            className={isLightTheme ? "px-2 py-2 text-emerald-600 hover:bg-emerald-50" : "px-2 py-2 text-emerald-400 hover:bg-emerald-500/10"}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           size="icon"
@@ -1301,6 +1339,19 @@ function ManageLeads({
                         <div className={`${dialogValueClassName} inline-flex items-center gap-2`}>
                           <Phone className="h-4 w-4 opacity-60" />
                           <span>{canViewLeadPhone ? selectedLead?.mobile || "-" : selectedLead?.mobile_masked || "Restricted"}</span>
+                          {selectedLead && canUseWhatsAppForLead(selectedLead) ? (
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              aria-label="Open WhatsApp"
+                              title="Open WhatsApp"
+                              onClick={() => handleOpenWhatsApp(selectedLead)}
+                              className={isLightTheme ? "h-8 w-8 text-emerald-600 hover:bg-emerald-50" : "h-8 w-8 text-emerald-400 hover:bg-emerald-500/10"}
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, CheckCheck, RefreshCw } from "lucide-react";
+import { Bell, CheckCheck, RefreshCw, Trash2 } from "lucide-react";
 import NOTIFICATIONS from "../../services/notificationService";
+import ConfirmDialog from "../ui/ConfirmDialog";
 
 const POLL_INTERVAL_MS = 45_000;
 
@@ -31,6 +32,8 @@ export default function NotificationBell({ theme = "dark", onNotificationNavigat
   const [unreadCount, setUnreadCount] = useState(0);
   const [markingAll, setMarkingAll] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  const [clearAllOpen, setClearAllOpen] = useState(false);
 
   const panelClassName = useMemo(
     () =>
@@ -135,6 +138,32 @@ export default function NotificationBell({ theme = "dark", onNotificationNavigat
     }
   };
 
+  const handleDeleteNotification = async (notificationId) => {
+    setDeletingId(String(notificationId));
+    const response = await NOTIFICATIONS.DELETE(notificationId);
+    setDeletingId("");
+
+    if (response?.status === 200) {
+      const deletedWasUnread = Boolean(response.data?.data?.wasUnread);
+      setNotifications((current) => current.filter((entry) => String(entry.id) !== String(notificationId)));
+      if (deletedWasUnread) {
+        setUnreadCount((current) => Math.max(0, current - 1));
+      }
+    }
+  };
+
+  const handleClearAllNotifications = async () => {
+    setMarkingAll(true);
+    const response = await NOTIFICATIONS.CLEAR_ALL();
+    setMarkingAll(false);
+    setClearAllOpen(false);
+
+    if (response?.status === 200) {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  };
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -166,19 +195,34 @@ export default function NotificationBell({ theme = "dark", onNotificationNavigat
                 Stay on top of leads, follow-ups, and access updates.
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleMarkAllRead}
-              disabled={markingAll || unreadCount === 0}
-              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
-                isLight
-                  ? "border-black/10 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  : "border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-50"
-              }`}
-            >
-              {markingAll ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
-              Mark all read
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setClearAllOpen(true)}
+                disabled={markingAll || notifications.length === 0}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
+                  isLight
+                    ? "border-black/10 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    : "border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                }`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear All
+              </button>
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                disabled={markingAll || unreadCount === 0}
+                className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs transition ${
+                  isLight
+                    ? "border-black/10 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    : "border-white/10 bg-white/[0.04] text-white/75 hover:bg-white/10 hover:text-white disabled:opacity-50"
+                }`}
+              >
+                {markingAll ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <CheckCheck className="h-3.5 w-3.5" />}
+                Mark all read
+              </button>
+            </div>
           </div>
 
           <div className="max-h-[420px] overflow-y-auto">
@@ -199,7 +243,8 @@ export default function NotificationBell({ theme = "dark", onNotificationNavigat
               </div>
             ) : notifications.length === 0 ? (
               <div className={`px-5 py-12 text-center text-sm ${isLight ? "text-slate-500" : "text-white/55"}`}>
-                No notifications yet
+                <div>No notifications yet</div>
+                <div className="mt-2 text-xs">You're all caught up.</div>
               </div>
             ) : (
               notifications.map((notification) => (
@@ -221,25 +266,44 @@ export default function NotificationBell({ theme = "dark", onNotificationNavigat
                         {formatTimeAgo(notification.createdAt)}
                       </div>
                     </button>
-                    {!notification.isRead ? (
+                    <div className="flex items-center gap-2">
+                      {!notification.isRead ? (
+                        <button
+                          type="button"
+                          aria-label="Mark notification as read"
+                          onClick={() => handleMarkRead(notification)}
+                          disabled={updatingId === String(notification.id) || deletingId === String(notification.id)}
+                          className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+                            isLight
+                              ? "border-black/10 bg-white text-slate-600 hover:bg-slate-50"
+                              : "border-white/10 bg-white/[0.04] text-white/65 hover:bg-white/10 hover:text-white"
+                          }`}
+                        >
+                          {updatingId === String(notification.id) ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCheck className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
-                        aria-label="Mark notification as read"
-                        onClick={() => handleMarkRead(notification)}
-                        disabled={updatingId === String(notification.id)}
+                        aria-label="Clear notification"
+                        onClick={() => handleDeleteNotification(notification.id)}
+                        disabled={deletingId === String(notification.id) || updatingId === String(notification.id)}
                         className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border transition ${
                           isLight
                             ? "border-black/10 bg-white text-slate-600 hover:bg-slate-50"
                             : "border-white/10 bg-white/[0.04] text-white/65 hover:bg-white/10 hover:text-white"
                         }`}
                       >
-                        {updatingId === String(notification.id) ? (
+                        {deletingId === String(notification.id) ? (
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <CheckCheck className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         )}
                       </button>
-                    ) : null}
+                    </div>
                   </div>
                 </div>
               ))
@@ -247,6 +311,20 @@ export default function NotificationBell({ theme = "dark", onNotificationNavigat
           </div>
         </div>
       ) : null}
+      <ConfirmDialog
+        open={clearAllOpen}
+        onOpenChange={(nextOpen) => {
+          if (markingAll) return;
+          setClearAllOpen(nextOpen);
+        }}
+        title="Clear Notifications"
+        description="Are you sure you want to clear all notifications?"
+        confirmLabel="Clear All"
+        cancelLabel="Cancel"
+        onConfirm={handleClearAllNotifications}
+        loading={markingAll}
+        destructive
+      />
     </div>
   );
 }

@@ -49,11 +49,31 @@ async function markAllNotificationsRead() {
   }
 }
 
+async function deleteNotification(id) {
+  try {
+    const response = await apiClient.delete(`${API.NOTIFICATIONS}/${id}`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to clear notification");
+  }
+}
+
+async function clearAllNotifications() {
+  try {
+    const response = await apiClient.delete(`${API.NOTIFICATIONS}/clear-all`);
+    return { status: response.status, data: response.data };
+  } catch (error) {
+    return normalizeApiError(error, "Failed to clear notifications");
+  }
+}
+
 const NOTIFICATIONS = {
   FETCH: fetchNotifications,
   FETCH_UNREAD_COUNT: fetchUnreadCount,
   MARK_READ: markNotificationRead,
   MARK_ALL_READ: markAllNotificationsRead,
+  DELETE: deleteNotification,
+  CLEAR_ALL: clearAllNotifications,
 };
 
 export default NOTIFICATIONS;
